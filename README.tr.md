@@ -110,7 +110,7 @@ capture.js      Derin tarama: sayfa yüklenmeden önce 250 kaynak sınırını k
 save.html/.js   "Klasör seç" indirme penceresi (File System Access API)
 background.js   Derin tarama akışı + İndirilenler klasörüne indirme kuyruğu
 icons/          16, 32, 48, 128 px simgeler
-docs/demo/      docs/demo.gif'i gerçek popup arayüzünden üretir (`npm install && npm run record`)
+docs/demo.gif   Bu README'nin başındaki demo animasyonu
 ```
 
 Derleme adımı ve framework yoktur: yalnızca JavaScript, HTML ve CSS.

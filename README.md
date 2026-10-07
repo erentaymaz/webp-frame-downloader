@@ -110,7 +110,7 @@ capture.js      Deep scan: lifts the 250-resource limit before the page loads
 save.html/.js   "Choose folder" download window (File System Access API)
 background.js   Deep scan flow + Downloads-folder download queue
 icons/          16, 32, 48, 128 px icons
-docs/demo/      Renders docs/demo.gif from the real popup UI (`npm install && npm run record`)
+docs/demo.gif   Demo animation shown at the top of this README
 ```
 
 No build step and no framework: plain JavaScript, HTML and CSS.
