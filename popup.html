@@ -20,18 +20,22 @@
     <section class="card">
       <div class="card__head">
         <h2 class="card__title">Sayfa taraması</h2>
-        <button id="rescanBtn" class="btn btn--ghost btn--small" type="button">Yeniden tara</button>
+        <div class="row">
+          <button id="rescanBtn" class="btn btn--ghost btn--small" type="button">Yeniden tara</button>
+          <button id="deepScanBtn" class="btn btn--secondary btn--small" type="button"
+                  title="Sayfayı yeniler, otomatik kaydırır ve tüm kareleri yakalar">Derin tara</button>
+        </div>
       </div>
       <p id="scanStatus" class="muted">Taranıyor…</p>
       <select id="sequenceSelect" class="input" hidden></select>
     </section>
 
-    <!-- 2) Tek URL'den çıkarım -->
+    <!-- 2) URL ile analiz: sayfa adresi veya tek bir frame adresi -->
     <section class="card">
-      <h2 class="card__title">URL'den çıkar</h2>
+      <h2 class="card__title">URL ile analiz</h2>
       <form id="urlForm" class="row">
         <input id="urlInput" class="input" type="url" required
-               placeholder="https://…/frames/frame_0202.webp" spellcheck="false">
+               placeholder="Sayfa adresi veya …/frame_0202.webp" spellcheck="false">
         <button class="btn btn--secondary" type="submit">Analiz et</button>
       </form>
       <p id="urlError" class="error" hidden></p>
@@ -42,6 +46,7 @@
       <h2 class="card__title">Frame dizisi</h2>
       <p class="pattern"><code id="patternText"></code></p>
       <p id="foundText" class="muted"></p>
+      <p id="detectText" class="muted small" hidden></p>
 
       <div class="range">
         <label class="field">
@@ -74,6 +79,7 @@
   </main>
 
   <script src="frames.js"></script>
+  <script src="scanner.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

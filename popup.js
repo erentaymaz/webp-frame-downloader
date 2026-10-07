@@ -2,96 +2,35 @@
  * WebP Frame Downloader — popup
  *
  * Bölümler:
- *   1. Sabitler
- *   2. Sayfa tarayıcı (sayfaya enjekte edilen fonksiyon)
- *   3. Arayüz durumu ve render
- *   4. Olay bağlama ve başlatma
+ *   1. Sabitler ve durum
+ *   2. Render
+ *   3. Tarama (hızlı + derin)
+ *   4. Dizi seçimi ve otomatik aralık tespiti
+ *   5. İndirme
+ *   6. Olay bağlama ve başlatma
  *
- * Dizi çözümleme yardımcıları frames.js içindedir.
+ * Bağımlılıklar:
+ *   frames.js  — dizi çözümleme, aralık tespiti, site izni
+ *   scanner.js — sayfaya enjekte edilen collectWebpUrls
  */
 
 'use strict';
 
 /* ================================================================== */
-/* 1. Sabitler                                                         */
+/* 1. Sabitler ve durum                                                */
 /* ================================================================== */
 
-/** İndirilen dosyaların konacağı klasör (varsayılan İndirilenler altında). */
+/** İndirilen dosyaların konacağı klasör (İndirilenler altında). */
 const DOWNLOAD_FOLDER = 'animation_frames';
 
-
-/* ================================================================== */
-/* 2. Sayfa tarayıcı                                                   */
-/* ================================================================== */
-
-/**
- * Aktif sekmede çalışır (chrome.scripting.executeScript ile enjekte edilir).
- * Bu yüzden tamamen bağımsız olmalı; dışarıdaki hiçbir şeye erişemez.
- *
- * Kaynaklar:
- *   - Sayfanın kendi URL'si (doğrudan .webp açıldıysa)
- *   - Performance API: sayfanın yüklediği tüm kaynaklar (fetch/XHR/canvas dahil)
- *   - <img>, <source>, <video poster>, <link>, SVG <image>, lazy-load data-* öznitelikleri
- *   - Satır içi ve hesaplanmış CSS background-image değerleri
- *
- * @returns {string[]} Benzersiz, mutlak .webp URL'leri
- */
-function collectWebpUrls() {
-  const found = new Set();
-  const isWebp = /\.webp(?:[?#]|$)/i;
-
-  const add = (value) => {
-    if (!value || typeof value !== 'string') return;
-    try {
-      const abs = new URL(value.trim(), document.baseURI).href;
-      if (isWebp.test(abs)) found.add(abs);
-    } catch (_) { /* geçersiz URL */ }
-  };
-
-  const addSrcset = (srcset) => {
-    if (!srcset) return;
-    srcset.split(',').forEach((part) => add(part.trim().split(/\s+/)[0]));
-  };
-
-  const addCssUrls = (css) => {
-    if (!css || css === 'none') return;
-    for (const m of css.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) add(m[2]);
-  };
-
-  // 1) Sayfanın kendisi
-  add(location.href);
-
-  // 2) Yüklenen tüm kaynaklar
-  performance.getEntriesByType('resource').forEach((e) => add(e.name));
-
-  // 3) DOM öğeleri
-  document.querySelectorAll('img, source, video, link, image, [data-src], [data-srcset]').forEach((el) => {
-    add(el.currentSrc);
-    add(el.getAttribute('src'));
-    add(el.getAttribute('href'));
-    add(el.getAttribute('xlink:href'));
-    add(el.getAttribute('poster'));
-    add(el.getAttribute('data-src'));
-    addSrcset(el.getAttribute('srcset'));
-    addSrcset(el.getAttribute('data-srcset'));
-  });
-
-  // 4) CSS arka planları
-  document.querySelectorAll('*').forEach((el) => {
-    addCssUrls(getComputedStyle(el).backgroundImage);
-  });
-
-  return [...found];
-}
-
-/* ================================================================== */
-/* 3. Arayüz durumu ve render                                          */
-/* ================================================================== */
+/** Tarayıcının varsayılan kaynak kaydı sınırı; dolduysa kaynak kaçmış olabilir. */
+const RESOURCE_BUFFER_LIMIT = 250;
 
 const $ = (id) => document.getElementById(id);
 
 const ui = {
   rescanBtn: $('rescanBtn'),
+  deepScanBtn: $('deepScanBtn'),
   scanStatus: $('scanStatus'),
   sequenceSelect: $('sequenceSelect'),
   urlForm: $('urlForm'),
@@ -100,6 +39,7 @@ const ui = {
   sequenceCard: $('sequenceCard'),
   patternText: $('patternText'),
   foundText: $('foundText'),
+  detectText: $('detectText'),
   startInput: $('startInput'),
   endInput: $('endInput'),
   rangeInfo: $('rangeInfo'),
@@ -113,16 +53,31 @@ const ui = {
 };
 
 const state = {
+  /** Aktif sekme */
+  tabId: null,
+  tabUrl: '',
+  /** Hızlı taramada bulunan URL'ler (derin tarama sonucuyla birleştirilir) */
+  quickUrls: [],
   /** @type {FrameSequence[]} */
   scanned: [],
   /** @type {FrameSequence | null} */
   current: null,
-  downloading: false
+  /** Kullanıcı aralığı elle değiştirdiyse otomatik tespit üzerine yazmaz */
+  rangeEdited: false,
+  /** Her yeni otomatik tespitte artar; eski tespitleri iptal eder */
+  detectToken: 0,
+  downloading: false,
+  deepScanning: false
 };
 
-/** Seçili diziyi ekrana basar ve aralık alanlarını doldurur. */
+/* ================================================================== */
+/* 2. Render                                                           */
+/* ================================================================== */
+
+/** Seçili diziyi ekrana basar, varsayılan aralığı doldurur ve tespiti başlatır. */
 function showSequence(seq) {
   state.current = seq;
+  state.rangeEdited = false;
   ui.sequenceCard.hidden = !seq;
   if (!seq) return;
 
@@ -133,14 +88,15 @@ function showSequence(seq) {
   const first = frameFileName(seq, seq.numbers[0]);
   const last = frameFileName(seq, seq.numbers[seq.numbers.length - 1]);
   ui.foundText.textContent = seq.source === 'url'
-    ? `URL'den çıkarıldı: ${first}. Başlangıç tahmini ${start}; gerekirse değiştirin.`
+    ? `URL'den çıkarıldı: ${first}`
     : seq.numbers.length > 1
-      ? `Sayfada ${seq.numbers.length} kare bulundu: ${first} → ${last}`
-      : `Sayfada 1 kare bulundu: ${first}`;
+      ? `Sayfada ${seq.numbers.length} kare görüldü: ${first} → ${last}`
+      : `Sayfada 1 kare görüldü: ${first}`;
 
   ui.startInput.value = start;
   ui.endInput.value = end;
   updateRangeInfo();
+  detectRange(seq);
 }
 
 /** Aralığı okur ve doğrular. */
@@ -173,7 +129,13 @@ function updateRangeInfo() {
   ui.downloadBtn.disabled = Boolean(r.error) || state.downloading;
 }
 
-/** Arka plandan gelen ilerleme durumunu ekrana basar. */
+function setDetectText(text, isError = false) {
+  ui.detectText.textContent = text;
+  ui.detectText.hidden = !text;
+  ui.detectText.classList.toggle('error', isError);
+}
+
+/** Arka plandan gelen indirme ilerlemesini ekrana basar. */
 function renderProgress(status) {
   if (!status || status.state === 'idle') {
     ui.progressCard.hidden = true;
@@ -202,41 +164,52 @@ function renderProgress(status) {
   updateRangeInfo();
 }
 
-/* ------------------------------------------------------------------ */
-/* Eylemler                                                            */
-/* ------------------------------------------------------------------ */
+/** Derin tarama durumunu ekrana basar; bittiyse sonuçları uygular. */
+function renderDeepScan(scan) {
+  if (!scan) return;
+  state.deepScanning = !['done', 'error'].includes(scan.phase);
+  ui.deepScanBtn.disabled = state.deepScanning || !state.tabUrl;
+  ui.rescanBtn.disabled = state.deepScanning;
 
-/** Aktif sekmeyi tarar ve bulunan dizileri listeler. */
-async function scanPage() {
-  ui.scanStatus.textContent = 'Taranıyor…';
+  if (state.deepScanning) {
+    ui.scanStatus.textContent = `Derin tarama: ${scan.message}`;
+  } else if (scan.phase === 'error') {
+    ui.scanStatus.textContent = scan.message;
+  } else {
+    applyUrls([...state.quickUrls, ...(scan.urls || [])], { deep: true });
+  }
+}
+
+/* ================================================================== */
+/* 3. Tarama                                                           */
+/* ================================================================== */
+
+/**
+ * Bulunan URL'leri dizilere ayırır ve listeler.
+ * @param {string[]} urls
+ * @param {{deep?: boolean, resourceCount?: number}} [info]
+ */
+function applyUrls(urls, info = {}) {
+  const unique = [...new Set(urls)];
+  state.scanned = groupSequences(unique);
   ui.sequenceSelect.hidden = true;
 
-  let urls = [];
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const [injection] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: collectWebpUrls
-    });
-    urls = injection?.result || [];
-  } catch (err) {
-    ui.scanStatus.textContent = 'Bu sayfa taranamıyor (tarayıcı sayfası veya erişim kısıtı). URL yapıştırarak devam edebilirsiniz.';
-    return;
-  }
+  const bufferFull = !info.deep && info.resourceCount >= RESOURCE_BUFFER_LIMIT;
+  const deepHint = bufferFull || !state.scanned.length
+    ? ' Kareler kaçmış olabilir — "Derin tara"yı deneyin.'
+    : '';
 
-  state.scanned = groupSequences(urls);
-
-  if (!urls.length) {
-    ui.scanStatus.textContent = 'Sayfada .webp dosyası bulunamadı.';
+  if (!unique.length) {
+    ui.scanStatus.textContent = `Sayfada .webp dosyası bulunamadı.${deepHint}`;
     return;
   }
   if (!state.scanned.length) {
-    ui.scanStatus.textContent = `${urls.length} .webp bulundu, ancak numaralı bir dizi tespit edilemedi.`;
+    ui.scanStatus.textContent = `${unique.length} .webp bulundu, ancak numaralı bir dizi yok.${deepHint}`;
     return;
   }
 
   ui.scanStatus.textContent =
-    `${urls.length} .webp bulundu · ${state.scanned.length} dizi tespit edildi.`;
+    `${info.deep ? 'Derin tarama: ' : ''}${unique.length} .webp · ${state.scanned.length} dizi tespit edildi.${deepHint}`;
 
   // Birden fazla dizi varsa seçim kutusunu göster
   if (state.scanned.length > 1) {
@@ -251,24 +224,127 @@ async function scanPage() {
     ui.sequenceSelect.hidden = false;
   }
 
-  // Kullanıcı elle URL girmediyse en olası diziyi seç
+  // Kullanıcı elle frame URL'si girmediyse en olası diziyi seç
   if (!state.current || state.current.source === 'scan') {
     showSequence(state.scanned[0]);
   }
 }
 
-/** Yapıştırılan URL'den dizi çıkarır. */
-function analyzeUrl(event) {
+/** Aktif sekmeyi hızlıca tarar (yenilemeden). */
+async function quickScan() {
+  ui.scanStatus.textContent = 'Taranıyor…';
+  try {
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId: state.tabId },
+      func: collectWebpUrls
+    });
+    const result = injection?.result || { urls: [], resourceCount: 0 };
+    state.quickUrls = result.urls;
+    applyUrls(result.urls, { resourceCount: result.resourceCount });
+  } catch (_) {
+    ui.scanStatus.textContent =
+      'Bu sayfa taranamıyor (tarayıcı sayfası veya erişim kısıtı). Yukarıya bir sayfa adresi yazabilirsiniz.';
+  }
+}
+
+/**
+ * Derin taramayı başlatır: site izni alınır, background sayfayı
+ * yeniler/açar, otomatik kaydırır ve tüm kaynakları toplar.
+ * @param {string} pageUrl
+ * @param {boolean} navigate  Sekmeyi bu adrese götür (false: yenile)
+ */
+async function startDeepScan(pageUrl, navigate) {
+  const permission = await requestSitePermission(pageUrl);
+  if (permission !== 'granted') {
+    ui.scanStatus.textContent = permission === 'unavailable'
+      ? RELOAD_EXTENSION_HINT
+      : 'Derin tarama için bu siteye erişim izni gerekli.';
+    return;
+  }
+
+  renderDeepScan({ phase: 'loading', message: 'Başlatılıyor…' });
+  state.current = null;
+  ui.sequenceCard.hidden = true;
+  if (navigate) state.quickUrls = [];
+
+  await chrome.runtime.sendMessage({
+    type: 'DEEP_SCAN',
+    tabId: state.tabId,
+    pageUrl,
+    navigate
+  });
+}
+
+/* ================================================================== */
+/* 4. Dizi seçimi ve otomatik aralık tespiti                           */
+/* ================================================================== */
+
+/**
+ * Seçili dizinin gerçek ilk ve son karesini sunucuyu yoklayarak bulur
+ * ve aralık alanlarını günceller (kullanıcı elle değiştirmediyse).
+ */
+async function detectRange(seq) {
+  const token = ++state.detectToken;
+  const isCancelled = () => token !== state.detectToken || state.current !== seq;
+
+  const knownFirst = seq.numbers[0];
+  const knownLast = seq.numbers[seq.numbers.length - 1];
+
+  setDetectText('🔍 İlk ve son kare otomatik aranıyor…');
+
+  // URL'den gelen kare gerçekten erişilebilir mi?
+  if (seq.source === 'url' && !(await frameExists(seq, knownLast))) {
+    if (!isCancelled()) setDetectText('Bu kareye erişilemedi; adresi kontrol edin.', true);
+    return;
+  }
+
+  const [first, last] = await Promise.all([
+    findFirstFrame(seq, knownFirst, isCancelled),
+    findLastFrame(seq, knownLast, isCancelled)
+  ]);
+  if (isCancelled() || first === null || last === null) return;
+
+  setDetectText(
+    `✓ Otomatik bulundu: ${frameFileName(seq, first)} → ${frameFileName(seq, last)} (${last - first + 1} kare)`
+  );
+  if (!state.rangeEdited) {
+    ui.startInput.value = first;
+    ui.endInput.value = last;
+    updateRangeInfo();
+  }
+}
+
+/**
+ * URL alanı: frame adresi girildiyse diziyi çıkarır;
+ * sayfa adresi girildiyse o sayfayı açıp derin tarar.
+ */
+async function analyzeUrl(event) {
   event.preventDefault();
-  const seq = sequenceFromUrl(ui.urlInput.value);
-  if (!seq) {
-    ui.urlError.textContent = 'URL "…/isim_0123.webp" biçiminde, sonu numara + .webp ile bitmeli.';
+  ui.urlError.hidden = true;
+  const value = ui.urlInput.value.trim();
+
+  const seq = sequenceFromUrl(value);
+  if (seq) {
+    showSequence(seq);
+    return;
+  }
+
+  let pageUrl;
+  try {
+    pageUrl = new URL(value);
+  } catch (_) { /* aşağıda hata gösterilir */ }
+  if (!pageUrl || !/^https?:$/.test(pageUrl.protocol) || state.tabId === null) {
+    ui.urlError.textContent = 'Geçerli bir sayfa adresi (https://…) veya frame adresi (…/frame_0001.webp) girin.';
     ui.urlError.hidden = false;
     return;
   }
-  ui.urlError.hidden = true;
-  showSequence(seq);
+
+  await startDeepScan(pageUrl.href, true);
 }
+
+/* ================================================================== */
+/* 5. İndirme                                                          */
+/* ================================================================== */
 
 /** Aralıktaki tüm kareleri background'a indirme işi olarak gönderir. */
 async function startDownload() {
@@ -326,28 +402,57 @@ async function cancelDownload() {
 }
 
 /* ================================================================== */
-/* 4. Olay bağlama ve başlatma                                         */
+/* 6. Olay bağlama ve başlatma                                         */
 /* ================================================================== */
 
-ui.rescanBtn.addEventListener('click', scanPage);
+ui.rescanBtn.addEventListener('click', quickScan);
+ui.deepScanBtn.addEventListener('click', () => startDeepScan(state.tabUrl, false));
 ui.urlForm.addEventListener('submit', analyzeUrl);
 ui.sequenceSelect.addEventListener('change', () => {
   showSequence(state.scanned[Number(ui.sequenceSelect.value)]);
 });
-ui.startInput.addEventListener('input', updateRangeInfo);
-ui.endInput.addEventListener('input', updateRangeInfo);
+for (const input of [ui.startInput, ui.endInput]) {
+  input.addEventListener('input', () => {
+    state.rangeEdited = true;
+    updateRangeInfo();
+  });
+}
 ui.pickFolderBtn.addEventListener('click', openSaveWindow);
 ui.downloadBtn.addEventListener('click', startDownload);
 ui.cancelBtn.addEventListener('click', cancelDownload);
 
-// Background'dan canlı ilerleme bildirimleri
+// Background'dan canlı bildirimler
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.type === 'PROGRESS') renderProgress(msg.status);
+  if (msg?.type === 'DEEP_SCAN_UPDATE' && msg.tabId === state.tabId) renderDeepScan(msg.scan);
 });
 
 (async function init() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  state.tabId = tab?.id ?? null;
+  state.tabUrl = /^https?:/.test(tab?.url || '') ? tab.url : '';
+  ui.deepScanBtn.disabled = !state.tabUrl;
+
   // Popup yeniden açıldığında devam eden indirmeyi göster
-  const res = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }).catch(() => null);
-  renderProgress(res?.status);
-  await scanPage();
+  const status = await chrome.runtime.sendMessage({ type: 'GET_STATUS' }).catch(() => null);
+  renderProgress(status?.status);
+
+  if (state.tabId === null) return;
+
+  // Bu sekmede derin tarama sürüyor ya da bitmişse onu göster
+  const deep = await chrome.runtime
+    .sendMessage({ type: 'GET_DEEP_SCAN', tabId: state.tabId })
+    .catch(() => null);
+
+  if (deep?.scan && !['done', 'error'].includes(deep.scan.phase)) {
+    renderDeepScan(deep.scan);
+    return;
+  }
+
+  await quickScan();
+
+  // Yalnızca aynı siteye ait bitmiş derin tarama sonucunu kullan
+  const sameSite = deep?.scan?.pageUrl && state.tabUrl &&
+    new URL(deep.scan.pageUrl).origin === new URL(state.tabUrl).origin;
+  if (deep?.scan?.phase === 'done' && sameSite) renderDeepScan(deep.scan);
 })();

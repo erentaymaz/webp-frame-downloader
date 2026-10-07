@@ -77,26 +77,6 @@ function readParams() {
 }
 
 /**
- * Dizinin barındığı sunucu için erişim izni ister (gerekiyorsa).
- * @returns {Promise<'granted' | 'denied' | 'unavailable'>}
- *   'unavailable': yüklü manifest'te optional_host_permissions yok
- *   (genellikle manifest değişti ama eklenti yeniden yüklenmedi).
- */
-async function ensureHostPermission() {
-  const declared = chrome.runtime.getManifest().optional_host_permissions;
-  if (!declared || !declared.length) return 'unavailable';
-
-  const origins = [`${new URL(state.seq.dir).origin}/*`];
-  try {
-    if (await chrome.permissions.contains({ origins })) return 'granted';
-    return (await chrome.permissions.request({ origins })) ? 'granted' : 'denied';
-  } catch (err) {
-    console.warn('Host izni istenemedi:', err);
-    return 'unavailable';
-  }
-}
-
-/**
  * İzin olmadan da indirilebilir mi? Sunucu CORS'a izin veriyorsa
  * (Access-Control-Allow-Origin) fetch izin gerektirmeden çalışır.
  * İlk kareyle denenir; herhangi bir HTTP yanıtı gelmesi yeterli.
@@ -196,7 +176,7 @@ async function startDownload() {
 
   // İzin isteği kullanıcı tıklamasının hemen ardından yapılmalı.
   ui.startBtn.disabled = true;
-  const permission = await ensureHostPermission();
+  const permission = await requestSitePermission(state.seq.dir);
 
   if (permission === 'granted') {
     state.credentials = 'include'; // izinle CORS devre dışı; çerezler de gönderilir
@@ -204,7 +184,7 @@ async function startDownload() {
     state.credentials = 'omit';    // sunucu CORS'a izin veriyor; izin gerekmez
   } else {
     showError(permission === 'unavailable'
-      ? 'Eklentinin güncel ayarları yüklenmemiş. chrome://extensions sayfasında eklentiyi yenileyin (⟳), bu pencereyi kapatıp tekrar deneyin.'
+      ? RELOAD_EXTENSION_HINT
       : 'Kareleri klasöre yazabilmek için bu siteye erişim izni gerekli. Lütfen izin isteğini onaylayın.');
     setRunning(false);
     return;

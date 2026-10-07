@@ -15,6 +15,9 @@
 
 'use strict';
 
+// collectWebpUrls ve autoScrollPage (sayfaya enjekte edilen fonksiyonlar)
+importScripts('scanner.js');
+
 /** Aynı anda en fazla kaç dosya indirilecek. */
 const MAX_PARALLEL = 4;
 
@@ -163,6 +166,110 @@ function cancelJob() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Derin tarama                                                        */
+/* ------------------------------------------------------------------ */
+
+/** Derin tarama sırasında geçici kaydedilen içerik betiğinin kimliği. */
+const CAPTURE_SCRIPT_ID = 'wfd-capture';
+
+/**
+ * Sekme başına derin tarama durumu. Popup kapanıp açılsa da sonuç burada kalır.
+ * @type {Map<number, {phase: string, message: string, pageUrl: string, urls?: string[]}>}
+ */
+const deepScans = new Map();
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Sekme yüklenmesi tamamlanana kadar bekler (zaman aşımıyla). */
+function waitForTabComplete(tabId, timeoutMs) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(done, timeoutMs);
+    function listener(id, info) {
+      if (id === tabId && info.status === 'complete') done();
+    }
+    function done() {
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+async function unregisterCapture() {
+  await chrome.scripting
+    .unregisterContentScripts({ ids: [CAPTURE_SCRIPT_ID] })
+    .catch(() => { /* kayıtlı değil */ });
+}
+
+/**
+ * Sayfayı kaynak sınırı kaldırılmış şekilde yeniden yükler, otomatik kaydırır
+ * ve tüm .webp kaynaklarını toplar.
+ *
+ * Gerektirdiği site izni popup tarafından (kullanıcı tıklamasıyla) önceden alınır.
+ *
+ * @param {number} tabId
+ * @param {string} pageUrl  Taranacak sayfa
+ * @param {boolean} navigate  true: sekmeyi bu adrese götür, false: yenile
+ */
+async function deepScan(tabId, pageUrl, navigate) {
+  const update = (phase, message, extra = {}) => {
+    const scan = { phase, message, pageUrl, ...extra };
+    deepScans.set(tabId, scan);
+    chrome.runtime
+      .sendMessage({ type: 'DEEP_SCAN_UPDATE', tabId, scan })
+      .catch(() => { /* popup kapalı */ });
+  };
+
+  // Uzun bekleyişlerde service worker'ın uykuya geçmesini engelle.
+  const keepAlive = setInterval(() => chrome.runtime.getPlatformInfo(), 20000);
+
+  try {
+    const origin = new URL(pageUrl).origin;
+
+    // 1) Sayfa yüklenmeden önce kaynak sınırını kaldıracak betiği kaydet
+    await unregisterCapture();
+    await chrome.scripting.registerContentScripts([{
+      id: CAPTURE_SCRIPT_ID,
+      matches: [`${origin}/*`],
+      js: ['capture.js'],
+      runAt: 'document_start',
+      world: 'MAIN',
+      persistAcrossSessions: false
+    }]);
+
+    // 2) Sayfayı yükle
+    update('loading', 'Sayfa yükleniyor…');
+    const loaded = waitForTabComplete(tabId, 45000);
+    if (navigate) await chrome.tabs.update(tabId, { url: pageUrl });
+    else await chrome.tabs.reload(tabId);
+    await loaded;
+    await sleep(1500);
+
+    // 3) Kaydırarak geç yüklenen kareleri tetikle
+    update('scrolling', 'Sayfa kaydırılıyor, kareler yükleniyor…');
+    await chrome.scripting.executeScript({ target: { tabId }, func: autoScrollPage });
+    await sleep(1000);
+
+    // 4) Topla
+    update('collecting', 'Kaynaklar toplanıyor…');
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: collectWebpUrls
+    });
+    update('done', '', { urls: injection?.result?.urls || [] });
+  } catch (err) {
+    console.warn('Derin tarama hatası:', err);
+    update('error', `Derin tarama başarısız: ${err.message}`);
+  } finally {
+    clearInterval(keepAlive);
+    await unregisterCapture();
+  }
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => deepScans.delete(tabId));
+
+/* ------------------------------------------------------------------ */
 /* Olay dinleyicileri                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -199,6 +306,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'CANCEL_DOWNLOAD':
       cancelJob();
       sendResponse({ ok: true, status: getStatus() });
+      break;
+
+    case 'DEEP_SCAN': {
+      const running = deepScans.get(msg.tabId);
+      if (!running || running.phase === 'done' || running.phase === 'error') {
+        // Çift tıklamada ikinci taramayı engellemek için durumu hemen işaretle
+        deepScans.set(msg.tabId, { phase: 'loading', message: 'Başlatılıyor…', pageUrl: msg.pageUrl });
+        deepScan(msg.tabId, msg.pageUrl, Boolean(msg.navigate));
+      }
+      sendResponse({ ok: true });
+      break;
+    }
+
+    case 'GET_DEEP_SCAN':
+      sendResponse({ ok: true, scan: deepScans.get(msg.tabId) || null });
       break;
 
     default:

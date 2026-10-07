@@ -142,3 +142,113 @@ function patternLabel(seq) {
   const hashes = '#'.repeat(seq.pad || 1);
   return `${seq.prefix}${hashes}${seq.ext}`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Otomatik aralık tespiti                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Kare sunucuda var mı? <img> ile yüklemeyi dener.
+ * Görsel yüklemesi CORS'a tabi olmadığı için ek izin gerektirmez.
+ * @returns {Promise<boolean>}
+ */
+function frameExists(seq, n, timeoutMs = 10000) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    function finish(ok) {
+      clearTimeout(timer);
+      img.onload = img.onerror = null;
+      resolve(ok);
+    }
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
+    img.src = frameUrl(seq, n);
+  });
+}
+
+/**
+ * Var olduğu bilinen bir kareden ileriye doğru son kareyi bulur.
+ * Önce adımları ikiye katlayarak ilerler (1, 2, 4, 8…), eksik kareye
+ * rastlayınca ikili arama yapar. Karelerin kesintisiz olduğu varsayılır.
+ * Örn. 202 kare için ~16 deneme yeterlidir.
+ *
+ * @param {FrameSequence} seq
+ * @param {number} known      Var olduğu bilinen kare
+ * @param {() => boolean} isCancelled
+ * @returns {Promise<number | null>}  Son kare; iptal edildiyse null
+ */
+async function findLastFrame(seq, known, isCancelled) {
+  let lo = known;   // var
+  let hi = null;    // yok
+  let step = 1;
+
+  while (hi === null) {
+    if (isCancelled()) return null;
+    const probe = lo + step;
+    if (probe - known > MAX_FRAMES) return lo; // güvenlik sınırı
+    if (await frameExists(seq, probe)) {
+      lo = probe;
+      step *= 2;
+    } else {
+      hi = probe;
+    }
+  }
+
+  while (hi - lo > 1) {
+    if (isCancelled()) return null;
+    const mid = Math.floor((lo + hi) / 2);
+    if (await frameExists(seq, mid)) lo = mid; else hi = mid;
+  }
+  return lo;
+}
+
+/**
+ * Var olduğu bilinen bir kareden geriye doğru ilk kareyi bulur (0'a kadar).
+ * @returns {Promise<number | null>}  İlk kare; iptal edildiyse null
+ */
+async function findFirstFrame(seq, known, isCancelled) {
+  if (known === 0) return 0;
+  if (await frameExists(seq, 0)) return 0;
+  if (isCancelled()) return null;
+
+  let lo = 0;      // yok
+  let hi = known;  // var
+  while (hi - lo > 1) {
+    if (isCancelled()) return null;
+    const mid = Math.floor((lo + hi) / 2);
+    if (await frameExists(seq, mid)) hi = mid; else lo = mid;
+  }
+  return hi;
+}
+
+/* ------------------------------------------------------------------ */
+/* Site izni                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Verilen adresin sitesi için (optional_host_permissions) erişim izni ister.
+ * Kullanıcı tıklamasının hemen ardından çağrılmalıdır.
+ *
+ * @param {string} url  İzin istenecek sitedeki herhangi bir adres
+ * @returns {Promise<'granted' | 'denied' | 'unavailable'>}
+ *   'unavailable': yüklü manifest'te optional_host_permissions yok
+ *   (genellikle manifest değişti ama eklenti yeniden yüklenmedi).
+ */
+async function requestSitePermission(url) {
+  const declared = chrome.runtime.getManifest().optional_host_permissions;
+  if (!declared || !declared.length) return 'unavailable';
+
+  const origins = [`${new URL(url).origin}/*`];
+  try {
+    if (await chrome.permissions.contains({ origins })) return 'granted';
+    return (await chrome.permissions.request({ origins })) ? 'granted' : 'denied';
+  } catch (err) {
+    console.warn('Site izni istenemedi:', err);
+    return 'unavailable';
+  }
+}
+
+/** requestSitePermission 'unavailable' döndüğünde gösterilecek mesaj. */
+const RELOAD_EXTENSION_HINT =
+  'Eklentinin güncel ayarları yüklenmemiş. chrome://extensions sayfasında eklentiyi yenileyin (⟳) ve tekrar deneyin.';
