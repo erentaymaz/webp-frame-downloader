@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="light dark">
+  <title>WebP Frame Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="header">
+    <img src="icons/icon32.png" alt="" class="header__icon" width="24" height="24">
+    <div>
+      <h1 class="header__title">WebP Frame Downloader</h1>
+      <p class="header__subtitle">Sıralı animasyon karelerini toplu indir</p>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1) Sayfa taraması -->
+    <section class="card">
+      <div class="card__head">
+        <h2 class="card__title">Sayfa taraması</h2>
+        <button id="rescanBtn" class="btn btn--ghost btn--small" type="button">Yeniden tara</button>
+      </div>
+      <p id="scanStatus" class="muted">Taranıyor…</p>
+      <select id="sequenceSelect" class="input" hidden></select>
+    </section>
+
+    <!-- 2) Tek URL'den çıkarım -->
+    <section class="card">
+      <h2 class="card__title">URL'den çıkar</h2>
+      <form id="urlForm" class="row">
+        <input id="urlInput" class="input" type="url" required
+               placeholder="https://…/frames/frame_0202.webp" spellcheck="false">
+        <button class="btn btn--secondary" type="submit">Analiz et</button>
+      </form>
+      <p id="urlError" class="error" hidden></p>
+    </section>
+
+    <!-- 3) Seçili dizi ve aralık -->
+    <section id="sequenceCard" class="card" hidden>
+      <h2 class="card__title">Frame dizisi</h2>
+      <p class="pattern"><code id="patternText"></code></p>
+      <p id="foundText" class="muted"></p>
+
+      <div class="range">
+        <label class="field">
+          <span>Başlangıç</span>
+          <input id="startInput" class="input" type="number" min="0" step="1">
+        </label>
+        <label class="field">
+          <span>Bitiş</span>
+          <input id="endInput" class="input" type="number" min="0" step="1">
+        </label>
+      </div>
+      <p id="rangeInfo" class="muted small"></p>
+
+      <button id="downloadBtn" class="btn btn--primary btn--block" type="button">Tümünü İndir</button>
+    </section>
+
+    <!-- 4) İlerleme -->
+    <section id="progressCard" class="card" hidden>
+      <div class="card__head">
+        <h2 class="card__title">İndirme</h2>
+        <span id="progressText" class="progress__text">0 / 0</span>
+      </div>
+      <div class="progress"><div id="progressBar" class="progress__bar"></div></div>
+      <div class="card__head">
+        <p id="progressInfo" class="muted small"></p>
+        <button id="cancelBtn" class="btn btn--ghost btn--small" type="button">İptal</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>
