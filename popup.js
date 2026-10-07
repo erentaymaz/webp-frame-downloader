@@ -367,6 +367,8 @@ async function startDownload() {
     ui.rangeInfo.classList.add('error');
   }
   renderProgress(res?.status);
+  // Popup en fazla 600px; ilerleme kartı aşağıda kalırsa görünür hale getir.
+  ui.progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 /**
