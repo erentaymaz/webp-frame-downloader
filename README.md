@@ -1,94 +1,136 @@
 # WebP Frame Downloader
 
-Açık web sayfasındaki `.webp` dosyalarını tarayan, `frame_0001.webp`, `frame_0002.webp` gibi **sıralı animasyon karelerini** otomatik tanıyan ve hepsini tek tıkla indiren bir tarayıcı eklentisi (Manifest V3).
+Detect and bulk download sequential WebP animation frames
+directly from web pages.
 
-Chrome, Edge, Opera ve diğer Chromium tabanlı tarayıcılarda çalışır. Framework yoktur; yalnızca vanilla JavaScript, HTML ve CSS kullanılır.
+![Chrome](https://img.shields.io/badge/Chrome-supported-4285F4?logo=googlechrome&logoColor=white)
+![Edge](https://img.shields.io/badge/Edge-supported-0078D7?logo=microsoftedge&logoColor=white)
+![Opera](https://img.shields.io/badge/Opera-supported-FF1B2D?logo=opera&logoColor=white)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-6c5ce7)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
-## Özellikler (v0.1)
+**English** · [Türkçe](README.tr.md)
 
-- Aktif sayfadaki `.webp` kaynaklarını tarar (img/srcset, CSS arka planları, lazy-load `data-src`, fetch/canvas ile yüklenenler dahil).
-- `isim_####.webp` biçimindeki sıralı dizileri otomatik gruplar; sıfır doldurmayı (`0001`) korur.
-- **Derin tarama**: sayfayı yeniler, tarayıcının 250 kaynak sınırını kaldırır, sayfayı otomatik kaydırır ve geç yüklenen kareleri de yakalar.
-- **Otomatik ilk/son kare tespiti**: birkaç kare bile görülse, sunucuyu yoklayarak dizinin gerçek başını ve sonunu bulur (~15-25 deneme).
-- **URL ile analiz**: sayfa adresi yazılırsa o sayfa açılıp derin taranır; frame adresi yazılırsa dizi doğrudan çıkarılır.
-- Başlangıç/bitiş elle değiştirilebilir.
-- **Klasör seçip indir**: kareleri bilgisayarınızda seçtiğiniz herhangi bir klasöre doğrudan kaydeder.
-- **İndirilenler/animation_frames'e indir**: tarayıcının indirme sistemiyle hızlı indirme; popup kapansa da sürer.
-- İlerleme `87 / 202` biçiminde gösterilir.
-- Sistem temasına uyan açık/koyu arayüz.
+<p align="center">
+  <img src="docs/demo.gif" width="720" alt="WebP Frame Downloader demo">
+</p>
 
-## Kurulum (geliştirici modu)
+## Why?
 
-1. Bu klasörü bilgisayarınıza indirin.
-2. Tarayıcıda eklentiler sayfasını açın:
+Some websites build scroll animations using hundreds of files like:
+
+```
+frame_0001.webp
+frame_0002.webp
+frame_0003.webp
+...
+frame_0202.webp
+```
+
+WebP Frame Downloader automatically detects the sequence,
+finds its real start and end, and downloads every frame.
+
+### Features
+
+✓ Automatic sequence detection  
+✓ Automatic first/last frame discovery  
+✓ Deep scan for lazy-loaded frames  
+✓ Direct frame URL analysis  
+✓ Bulk download  
+✓ Custom destination folder  
+✓ Chrome / Edge / Opera  
+✓ No tracking, no analytics
+
+## Installation
+
+The extension is not on a web store yet, so you load it in developer mode:
+
+1. Download or clone this repository.
+2. Open the extensions page of your browser:
    - Chrome: `chrome://extensions`
    - Edge: `edge://extensions`
    - Opera: `opera://extensions`
-3. **Geliştirici modu**nu açın.
-4. **Paketlenmemiş öğe yükle** (Load unpacked) deyip bu klasörü seçin.
-5. Eklentiyi araç çubuğuna sabitleyin.
+3. Turn on **Developer mode**.
+4. Click **Load unpacked** and select the repository folder.
+5. Pin the extension to the toolbar.
 
-## Kullanım
+## Usage
 
-### Sayfadan tarama
-1. Animasyonun olduğu sayfayı açın ve animasyonun yüklenmesini bekleyin.
-2. Eklenti simgesine tıklayın; sayfa otomatik taranır.
-   - Dizi bulunamazsa veya eksik görünüyorsa **Derin tara**'ya basın. İlk seferde site için erişim izni istenir; sayfa yenilenir ve kendiliğinden kaydırılır (10-30 sn).
-3. Birden fazla dizi bulunduysa listeden seçin.
-4. Eklenti ilk ve son kareyi otomatik bulur (`✓ Otomatik bulundu: …`). Gerekirse aralığı elle düzenleyin.
-5. İndirme yöntemini seçin:
-   - **Klasör seçip indir…** → küçük bir pencere açılır. **Klasör seç…** ile hedefi seçin, **İndirmeyi başlat**'a basın. İlk seferde tarayıcı bu siteye (ör. `*.cloudfront.net`) erişim izni ister; kareleri klasöre yazabilmek için gereklidir. İndirme bitene kadar pencereyi açık tutun.
-   - **İndirilenler/animation_frames'e indir** → dosyalar varsayılan İndirilenler klasörünün altına iner.
+> The interface is currently in Turkish. Button names below are shown as they appear in the extension, followed by their English meaning.
 
-### URL ile analiz
-- **Sayfa adresi** (örn. `https://racing.porsche.com`): **Analiz et** sekmeyi o sayfaya götürür ve derin taramayı kendisi yapar.
-- **Frame adresi** (örn. `…/frames/frame_0202.webp`): dizi doğrudan çıkarılır, ilk ve son kare otomatik bulunur.
+### Scan the current page
 
-> İpucu: Doğrudan bir `.webp` dosyasını sekmede açtığınızda (yukarıdaki örnekteki gibi) sayfa taraması o URL'yi zaten bulur; ayrıca yapıştırmanız gerekmez.
+1. Open the page with the animation and let it load.
+2. Click the extension icon. The page is scanned automatically.
+   - If no sequence is found, or it looks incomplete, click **Derin tara** *(Deep scan)*. The first time, the browser asks for access to that site. The page then reloads and scrolls itself (10–30 seconds).
+3. If several sequences are found, pick one from the list.
+4. The extension finds the first and last frame on its own (`✓ Otomatik bulundu: …` — *found automatically*). You can still edit the range by hand.
+5. Choose how to download:
+   - **Klasör seçip indir…** *(Choose folder and download)* opens a small window. Pick a folder with **Klasör seç…** *(Choose folder)*, then click **İndirmeyi başlat** *(Start download)*. The first time, the browser asks for access to the server that hosts the frames (for example `*.cloudfront.net`). Keep the window open until the download finishes.
+   - **İndirilenler/animation_frames'e indir** *(Download to Downloads/animation_frames)* uses the browser's own download manager and keeps going even if the popup closes.
 
-## İzinler
+Progress is shown as `87 / 202`.
 
-| İzin        | Neden |
-|-------------|-------|
-| `activeTab` | Yalnızca eklenti simgesine tıkladığınız sekmeyi taramak için. Tüm sitelere kalıcı erişim istenmez. |
-| `scripting` | Tarama fonksiyonunu aktif sekmeye enjekte etmek için. |
-| `downloads` | "İndirilenler'e indir" seçeneği için. |
-| `optional_host_permissions` | Yalnızca "Derin tara" veya "Klasör seçip indir" kullanıldığında, **sadece ilgili site için** çalışma anında istenir. Kurulumda hiçbir siteye erişim verilmez. |
+### Analyze a URL
 
-`storage` veya `tabs` gibi ek izinler kullanılmaz.
+Type a URL into the **URL ile analiz** *(Analyze URL)* field and click **Analiz et** *(Analyze)*:
 
-> Neden ek izin? `chrome.downloads` API'si yalnızca İndirilenler klasörüne yazabilir. Başka bir klasöre yazmak için dosyaların eklenti tarafından çekilip File System Access API ile kaydedilmesi gerekir; farklı bir sunucudan dosya çekmek de o sunucu için izin ister.
+- **A page URL** (for example `https://racing.porsche.com`): the tab opens that page and runs a deep scan for you.
+- **A frame URL** (for example `…/frames/frame_0202.webp`): the sequence is built from that one file, and its first and last frame are found automatically.
 
-## Dosya yapısı
+## How it works
+
+- **Scanning** collects `.webp` URLs from loaded resources (Performance API), `<img>`/`srcset`, lazy-load `data-*` attributes, CSS backgrounds and inline JSON. Files named `name_####.webp` in the same folder are grouped into one sequence, and zero padding (`0001`) is kept.
+- **Deep scan**: by default the browser records only the first ~250 resources a page loads, so heavy sites can hide their frames. Deep scan raises that limit before the page loads, reloads the page, scrolls to the bottom to trigger lazy loading, and then scans.
+- **First/last frame discovery** checks whether a frame exists by loading it as an image. It steps forward in growing jumps (1, 2, 4, 8…) and then narrows down with a binary search. A 400-frame sequence needs about 20 checks and no extra permission.
+
+## Permissions
+
+| Permission | Why |
+|---|---|
+| `activeTab` | Scan only the tab where you clicked the extension. No permanent access to any site. |
+| `scripting` | Run the scanner inside that tab. |
+| `downloads` | The "Download to Downloads/animation_frames" option. |
+| `optional_host_permissions` | Asked at runtime, **only for the site involved**, and only when you use deep scan or "Choose folder and download". Installing the extension grants no site access. |
+
+The extension does not use `storage`, `tabs`, analytics or any remote server of its own.
+
+> **Why the optional permission?** The `chrome.downloads` API can only save into the Downloads folder. To write into a folder you choose, the extension has to fetch the files itself and save them with the File System Access API, and fetching from another server requires access to that server.
+
+## Project structure
 
 ```
-manifest.json   Eklenti tanımı (MV3, minimum izin)
-popup.html      Arayüz
-popup.css       Stil (açık/koyu tema değişkenleri)
-popup.js        Popup arayüz mantığı (tarama, aralık tespiti, indirme)
-frames.js       Ortak yardımcılar: dizi çözümleme, ilk/son kare tespiti, site izni
-scanner.js      Sayfaya enjekte edilen tarama ve otomatik kaydırma fonksiyonları
-capture.js      Derin taramada sayfa yüklenmeden önce 250 kaynak sınırını kaldırır
-save.html/.js   Klasör seçip indirme penceresi (File System Access API)
-background.js   Derin tarama akışı + İndirilenler'e indirme kuyruğu
-icons/          16, 32, 48, 128 px simgeler
+manifest.json   Extension manifest (MV3, minimal permissions)
+popup.html      Popup UI
+popup.css       Styles (light/dark theme variables)
+popup.js        Popup logic: scanning, range detection, downloads
+frames.js       Shared helpers: sequence parsing, first/last frame discovery, site permission
+scanner.js      Functions injected into the page: scanner and auto-scroll
+capture.js      Deep scan: lifts the 250-resource limit before the page loads
+save.html/.js   "Choose folder" download window (File System Access API)
+background.js   Deep scan flow + Downloads-folder download queue
+icons/          16, 32, 48, 128 px icons
+docs/demo/      Renders docs/demo.gif from the real popup UI (`npm install && npm run record`)
 ```
 
-## Bilinen sınırlamalar
+No build step and no framework: plain JavaScript, HTML and CSS.
 
-- Hızlı tarama yalnızca tarayıcının kaydettiği ilk ~250 kaynağı görür; ağır sitelerde **Derin tara** kullanın.
-- Kareleri bir Web Worker içinde yükleyen siteler taramada görünmez; bu durumda bir karenin adresini yapıştırın.
-- Otomatik aralık tespiti karelerin kesintisiz numaralandığını varsayar.
-- Her kare için farklı imzalı (signed) sorgu dizesi kullanan URL'lerde yalnızca ilk karenin sorgusu kullanılır, bu yüzden diğer kareler inmeyebilir.
-- Klasöre indirmede aynı adlı dosyaların üzerine yazılır. İndirilenler'e indirmede ise tarayıcı `frame_0001 (1).webp` gibi yeni ad verir.
+## Known limitations
 
-## Yol haritası
+- A quick scan sees only the first ~250 resources the browser recorded. Use deep scan on heavy sites.
+- Frames loaded inside a Web Worker do not show up in any scan. Paste the URL of one frame instead.
+- First/last frame discovery assumes the frame numbers have no gaps.
+- If every frame uses a different signed query string, only the first frame's query is reused, so other frames may fail.
+- Choosing a folder overwrites files with the same name. Downloading to the Downloads folder renames them instead (`frame_0001 (1).webp`).
 
-- [x] Otomatik ilk/son frame tespiti
-- [ ] ZIP olarak tek dosyada indirme
-- [ ] Animasyon dışa aktarma (animated WebP / GIF / MP4)
-- [ ] Dizi başına alt klasör seçeneği
+## Roadmap
 
-## Lisans
+- [x] Automatic first/last frame discovery
+- [ ] English interface
+- [ ] Download as a single ZIP
+- [ ] Export as an animation (animated WebP / GIF / MP4)
+- [ ] Optional subfolder per sequence
 
-MIT — bkz. [LICENSE](LICENSE).
+## License
+
+MIT, see [LICENSE](LICENSE).
