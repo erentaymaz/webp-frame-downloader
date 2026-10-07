@@ -9,8 +9,9 @@ Chrome, Edge, Opera ve diğer Chromium tabanlı tarayıcılarda çalışır. Fra
 - Aktif sayfadaki `.webp` kaynaklarını tarar (img/srcset, CSS arka planları, lazy-load `data-src`, fetch/canvas ile yüklenenler dahil).
 - `isim_####.webp` biçimindeki sıralı dizileri otomatik gruplar; sıfır doldurmayı (`0001`) korur.
 - Bulunan ilk ve son kare numarasını gösterir; başlangıç/bitiş değiştirilebilir.
-- **Tümünü İndir**: kareleri `İndirilenler/animation_frames/` klasörüne indirir.
-- İlerleme `87 / 202` biçiminde gösterilir; popup kapansa da indirme sürer, tekrar açınca ilerleme görünür.
+- **Klasör seçip indir**: kareleri bilgisayarınızda seçtiğiniz herhangi bir klasöre doğrudan kaydeder.
+- **İndirilenler/animation_frames'e indir**: tarayıcının indirme sistemiyle hızlı indirme; popup kapansa da sürer.
+- İlerleme `87 / 202` biçiminde gösterilir.
 - Tek bir kare URL'si yapıştırarak dizi çıkarma: `…/frames/frame_0202.webp` → `frame_0001` … `frame_0202`.
 - Sistem temasına uyan açık/koyu arayüz.
 
@@ -31,7 +32,10 @@ Chrome, Edge, Opera ve diğer Chromium tabanlı tarayıcılarda çalışır. Fra
 1. Animasyonun olduğu sayfayı açın ve animasyonun yüklenmesini bekleyin.
 2. Eklenti simgesine tıklayın; sayfa otomatik taranır.
 3. Birden fazla dizi bulunduysa listeden seçin.
-4. Gerekirse başlangıç/bitiş numaralarını düzenleyip **Tümünü İndir**'e basın.
+4. Gerekirse başlangıç/bitiş numaralarını düzenleyin.
+5. İndirme yöntemini seçin:
+   - **Klasör seçip indir…** → küçük bir pencere açılır. **Klasör seç…** ile hedefi seçin, **İndirmeyi başlat**'a basın. İlk seferde tarayıcı bu siteye (ör. `*.cloudfront.net`) erişim izni ister; kareleri klasöre yazabilmek için gereklidir. İndirme bitene kadar pencereyi açık tutun.
+   - **İndirilenler/animation_frames'e indir** → dosyalar varsayılan İndirilenler klasörünün altına iner.
 
 ### URL'den çıkarma
 1. Herhangi bir karenin adresini kopyalayın, örn.
@@ -47,9 +51,12 @@ Chrome, Edge, Opera ve diğer Chromium tabanlı tarayıcılarda çalışır. Fra
 |-------------|-------|
 | `activeTab` | Yalnızca eklenti simgesine tıkladığınız sekmeyi taramak için. Tüm sitelere kalıcı erişim istenmez. |
 | `scripting` | Tarama fonksiyonunu aktif sekmeye enjekte etmek için. |
-| `downloads` | Kareleri `animation_frames` klasörüne indirmek için. |
+| `downloads` | "İndirilenler'e indir" seçeneği için. |
+| `optional_host_permissions` | Yalnızca "Klasör seçip indir" kullanıldığında, **sadece kareleri barındıran site için** çalışma anında istenir. Kurulumda hiçbir siteye erişim verilmez. |
 
-`host_permissions`, `storage` veya `tabs` gibi ek izinler kullanılmaz.
+`storage` veya `tabs` gibi ek izinler kullanılmaz.
+
+> Neden ek izin? `chrome.downloads` API'si yalnızca İndirilenler klasörüne yazabilir. Başka bir klasöre yazmak için dosyaların eklenti tarafından çekilip File System Access API ile kaydedilmesi gerekir; farklı bir sunucudan dosya çekmek de o sunucu için izin ister.
 
 ## Dosya yapısı
 
@@ -57,8 +64,10 @@ Chrome, Edge, Opera ve diğer Chromium tabanlı tarayıcılarda çalışır. Fra
 manifest.json   Eklenti tanımı (MV3, minimum izin)
 popup.html      Arayüz
 popup.css       Stil (açık/koyu tema değişkenleri)
-popup.js        Tarama, dizi çözümleme, arayüz mantığı
-background.js   İndirme kuyruğu (4 paralel indirme, ilerleme bildirimi)
+popup.js        Sayfa tarama ve popup arayüz mantığı
+frames.js       Ortak dizi çözümleme yardımcıları (popup + save)
+save.html/.js   Klasör seçip indirme penceresi (File System Access API)
+background.js   İndirilenler'e indirme kuyruğu (4 paralel, ilerleme bildirimi)
 icons/          16, 32, 48, 128 px simgeler
 ```
 
@@ -67,7 +76,7 @@ icons/          16, 32, 48, 128 px simgeler
 - Tarayıcı Performance API'si varsayılan olarak ilk ~250 kaynağı tutar; çok sayıda kare yükleyen sayfalarda son kareler taramada görünmeyebilir. Bu durumda bitiş numarasını elle artırın ya da son karenin URL'sini yapıştırın.
 - Son kare numarası henüz otomatik doğrulanmıyor; aralık dışındaki numaralar 404 ile "başarısız" sayılır.
 - Her kare için farklı imzalı (signed) sorgu dizesi kullanan URL'lerde yalnızca ilk karenin sorgusu kullanılır, bu yüzden diğer kareler inmeyebilir.
-- Aynı adlı dosyalar varsa tarayıcı `frame_0001 (1).webp` gibi yeni ad verir.
+- Klasöre indirmede aynı adlı dosyaların üzerine yazılır. İndirilenler'e indirmede ise tarayıcı `frame_0001 (1).webp` gibi yeni ad verir.
 
 ## Yol haritası
 

@@ -46,6 +46,13 @@ body {
   font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* save.html gibi tam sayfa pencereler pencere genişliğini kullanır */
+body.page {
+  width: auto;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
 h1, h2, p { margin: 0; }
 
 main {

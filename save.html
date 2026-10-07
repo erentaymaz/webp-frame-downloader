@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="light dark">
+  <title>Klasöre indir — WebP Frame Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="page">
+  <header class="header">
+    <img src="icons/icon32.png" alt="" class="header__icon" width="24" height="24">
+    <div>
+      <h1 class="header__title">Klasöre indir</h1>
+      <p class="header__subtitle">Kareler seçtiğiniz klasöre doğrudan kaydedilir</p>
+    </div>
+  </header>
+
+  <main>
+    <!-- İndirilecek dizi özeti -->
+    <section class="card">
+      <h2 class="card__title">Frame dizisi</h2>
+      <p class="pattern"><code id="patternText"></code></p>
+      <p id="rangeText" class="muted"></p>
+    </section>
+
+    <!-- Hedef klasör -->
+    <section class="card">
+      <div class="card__head">
+        <h2 class="card__title">Hedef klasör</h2>
+        <button id="pickBtn" class="btn btn--secondary btn--small" type="button">Klasör seç…</button>
+      </div>
+      <p id="folderText" class="muted">Henüz klasör seçilmedi.</p>
+    </section>
+
+    <button id="startBtn" class="btn btn--primary btn--block" type="button" disabled>İndirmeyi başlat</button>
+    <p id="errorText" class="error" hidden></p>
+
+    <!-- İlerleme -->
+    <section id="progressCard" class="card" hidden>
+      <div class="card__head">
+        <h2 class="card__title">İndirme</h2>
+        <span id="progressText" class="progress__text">0 / 0</span>
+      </div>
+      <div class="progress"><div id="progressBar" class="progress__bar"></div></div>
+      <div class="card__head">
+        <p id="progressInfo" class="muted small"></p>
+        <button id="cancelBtn" class="btn btn--ghost btn--small" type="button">İptal</button>
+      </div>
+      <p id="failedText" class="error" hidden></p>
+    </section>
+  </main>
+
+  <script src="frames.js"></script>
+  <script src="save.js"></script>
+</body>
+</html>
