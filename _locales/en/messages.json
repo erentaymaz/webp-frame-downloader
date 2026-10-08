@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "WebP Frame Downloader"
+  },
+  "extDescription": {
+    "message": "Detects sequential WebP animation frames like frame_####.webp on web pages and downloads them in bulk."
+  }
+}

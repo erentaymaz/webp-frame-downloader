@@ -69,7 +69,7 @@ function broadcast() {
 
 function startJob(items) {
   if (job && job.state === 'running') {
-    throw new Error('Zaten devam eden bir indirme var.');
+    throw Object.assign(new Error('A download is already in progress.'), { code: 'busy' });
   }
   earlyStates.clear();
   job = {
@@ -174,7 +174,8 @@ const CAPTURE_SCRIPT_ID = 'wfd-capture';
 
 /**
  * Sekme başına derin tarama durumu. Popup kapanıp açılsa da sonuç burada kalır.
- * @type {Map<number, {phase: string, message: string, pageUrl: string, urls?: string[]}>}
+ * Metin değil aşama kodu tutulur; popup bunu seçili dilde gösterir.
+ * @type {Map<number, {phase: string, pageUrl: string, error?: string, urls?: string[]}>}
  */
 const deepScans = new Map();
 
@@ -213,8 +214,8 @@ async function unregisterCapture() {
  * @param {boolean} navigate  true: sekmeyi bu adrese götür, false: yenile
  */
 async function deepScan(tabId, pageUrl, navigate) {
-  const update = (phase, message, extra = {}) => {
-    const scan = { phase, message, pageUrl, ...extra };
+  const update = (phase, extra = {}) => {
+    const scan = { phase, pageUrl, ...extra };
     deepScans.set(tabId, scan);
     chrome.runtime
       .sendMessage({ type: 'DEEP_SCAN_UPDATE', tabId, scan })
@@ -239,7 +240,7 @@ async function deepScan(tabId, pageUrl, navigate) {
     }]);
 
     // 2) Sayfayı yükle
-    update('loading', 'Sayfa yükleniyor…');
+    update('loading');
     const loaded = waitForTabComplete(tabId, 45000);
     if (navigate) await chrome.tabs.update(tabId, { url: pageUrl });
     else await chrome.tabs.reload(tabId);
@@ -247,20 +248,20 @@ async function deepScan(tabId, pageUrl, navigate) {
     await sleep(1500);
 
     // 3) Kaydırarak geç yüklenen kareleri tetikle
-    update('scrolling', 'Sayfa kaydırılıyor, kareler yükleniyor…');
+    update('scrolling');
     await chrome.scripting.executeScript({ target: { tabId }, func: autoScrollPage });
     await sleep(1000);
 
     // 4) Topla
-    update('collecting', 'Kaynaklar toplanıyor…');
+    update('collecting');
     const [injection] = await chrome.scripting.executeScript({
       target: { tabId },
       func: collectWebpUrls
     });
-    update('done', '', { urls: injection?.result?.urls || [] });
+    update('done', { urls: injection?.result?.urls || [] });
   } catch (err) {
     console.warn('Derin tarama hatası:', err);
-    update('error', `Derin tarama başarısız: ${err.message}`);
+    update('error', { error: err.message });
   } finally {
     clearInterval(keepAlive);
     await unregisterCapture();
@@ -295,7 +296,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         startJob(msg.items || []);
         sendResponse({ ok: true, status: getStatus() });
       } catch (err) {
-        sendResponse({ ok: false, error: err.message, status: getStatus() });
+        sendResponse({ ok: false, errorCode: err.code || 'unknown', status: getStatus() });
       }
       break;
 
@@ -312,7 +313,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const running = deepScans.get(msg.tabId);
       if (!running || running.phase === 'done' || running.phase === 'error') {
         // Çift tıklamada ikinci taramayı engellemek için durumu hemen işaretle
-        deepScans.set(msg.tabId, { phase: 'loading', message: 'Başlatılıyor…', pageUrl: msg.pageUrl });
+        deepScans.set(msg.tabId, { phase: 'starting', pageUrl: msg.pageUrl });
         deepScan(msg.tabId, msg.pageUrl, Boolean(msg.navigate));
       }
       sendResponse({ ok: true });

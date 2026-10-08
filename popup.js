@@ -10,8 +10,12 @@
  *   6. Olay bağlama ve başlatma
  *
  * Bağımlılıklar:
+ *   i18n.js    — arayüz metinleri (t, setText), dil seçici
  *   frames.js  — dizi çözümleme, aralık tespiti, site izni
  *   scanner.js — sayfaya enjekte edilen collectWebpUrls
+ *
+ * Ekrandaki metinler setText ile yazılır; böylece dil değiştirildiğinde
+ * o anki durum korunarak yeniden çevrilir.
  */
 
 'use strict';
@@ -25,6 +29,14 @@ const DOWNLOAD_FOLDER = 'animation_frames';
 
 /** Tarayıcının varsayılan kaynak kaydı sınırı; dolduysa kaynak kaçmış olabilir. */
 const RESOURCE_BUFFER_LIMIT = 250;
+
+/** Background'dan gelen derin tarama aşaması -> metin anahtarı */
+const DEEP_PHASE_KEYS = {
+  starting: 'deepStarting',
+  loading: 'deepLoading',
+  scrolling: 'deepScrolling',
+  collecting: 'deepCollecting'
+};
 
 const $ = (id) => document.getElementById(id);
 
@@ -87,11 +99,8 @@ function showSequence(seq) {
 
   const first = frameFileName(seq, seq.numbers[0]);
   const last = frameFileName(seq, seq.numbers[seq.numbers.length - 1]);
-  ui.foundText.textContent = seq.source === 'url'
-    ? `URL'den çıkarıldı: ${first}`
-    : seq.numbers.length > 1
-      ? `Sayfada ${seq.numbers.length} kare görüldü: ${first} → ${last}`
-      : `Sayfada 1 kare görüldü: ${first}`;
+  if (seq.source === 'url') setText(ui.foundText, 'foundFromUrl', { first });
+  else setText(ui.foundText, 'foundOnPage', { n: seq.numbers.length, first, last });
 
   ui.startInput.value = start;
   ui.endInput.value = end;
@@ -99,17 +108,20 @@ function showSequence(seq) {
   detectRange(seq);
 }
 
-/** Aralığı okur ve doğrular. */
+/**
+ * Aralığı okur ve doğrular.
+ * @returns {{start: number, end: number, count: number} | {errorKey: string, params?: object}}
+ */
 function readRange() {
   const start = Number(ui.startInput.value);
   const end = Number(ui.endInput.value);
   if (ui.startInput.value === '' || ui.endInput.value === '' ||
       !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < 0) {
-    return { error: 'Başlangıç ve bitiş 0 veya daha büyük tam sayı olmalı.' };
+    return { errorKey: 'rangeNotInteger' };
   }
-  if (start > end) return { error: 'Başlangıç, bitişten büyük olamaz.' };
+  if (start > end) return { errorKey: 'rangeOrder' };
   const count = end - start + 1;
-  if (count > MAX_FRAMES) return { error: `En fazla ${MAX_FRAMES} kare indirilebilir.` };
+  if (count > MAX_FRAMES) return { errorKey: 'rangeTooLarge', params: { max: MAX_FRAMES } };
   return { start, end, count };
 }
 
@@ -117,50 +129,53 @@ function updateRangeInfo() {
   const seq = state.current;
   if (!seq) return;
   const r = readRange();
-  if (r.error) {
-    ui.rangeInfo.textContent = r.error;
+  if (r.errorKey) {
+    setText(ui.rangeInfo, r.errorKey, r.params);
     ui.rangeInfo.classList.add('error');
   } else {
-    ui.rangeInfo.textContent =
-      `${r.count} kare · ${frameFileName(seq, r.start)} → ${frameFileName(seq, r.end)}`;
+    setText(ui.rangeInfo, 'rangeSummary', {
+      n: r.count,
+      first: frameFileName(seq, r.start),
+      last: frameFileName(seq, r.end)
+    });
     ui.rangeInfo.classList.remove('error');
   }
-  ui.pickFolderBtn.disabled = Boolean(r.error);
-  ui.downloadBtn.disabled = Boolean(r.error) || state.downloading;
+  ui.pickFolderBtn.disabled = Boolean(r.errorKey);
+  ui.downloadBtn.disabled = Boolean(r.errorKey) || state.downloading;
 }
 
-function setDetectText(text, isError = false) {
-  ui.detectText.textContent = text;
-  ui.detectText.hidden = !text;
+/** Otomatik aralık tespiti satırı. key boşsa satır gizlenir. */
+function setDetectText(key, params = {}, isError = false) {
+  setText(ui.detectText, key, params);
+  ui.detectText.hidden = !key;
   ui.detectText.classList.toggle('error', isError);
 }
 
 /** Arka plandan gelen indirme ilerlemesini ekrana basar. */
 function renderProgress(status) {
+  const running = status?.state === 'running';
+  state.downloading = running;
+  setText(ui.downloadBtn, running ? 'downloading' : 'downloadToDownloads', { folder: DOWNLOAD_FOLDER });
+
   if (!status || status.state === 'idle') {
     ui.progressCard.hidden = true;
-    state.downloading = false;
     updateRangeInfo();
     return;
   }
 
   const { total, done, failed } = status;
-  const running = status.state === 'running';
-  state.downloading = running;
-
   ui.progressCard.hidden = false;
   ui.progressText.textContent = `${done} / ${total}`;
   ui.progressBar.style.width = total ? `${(done / total) * 100}%` : '0%';
   ui.progressBar.classList.toggle('is-done', status.state === 'done' && failed === 0);
   ui.cancelBtn.hidden = !running;
 
-  const failText = failed ? ` · ${failed} başarısız` : '';
-  ui.progressInfo.textContent =
-    running ? `İndiriliyor…${failText}`
-    : status.state === 'cancelled' ? `İptal edildi${failText}`
-    : `Tamamlandı → İndirilenler/${DOWNLOAD_FOLDER}${failText}`;
+  const infoKey =
+    running ? 'progressRunning'
+    : status.state === 'cancelled' ? 'progressCancelled'
+    : 'progressDone';
+  setText(ui.progressInfo, infoKey, { failed, folder: DOWNLOAD_FOLDER });
 
-  ui.downloadBtn.textContent = running ? 'İndiriliyor…' : `İndirilenler/${DOWNLOAD_FOLDER}'e indir`;
   updateRangeInfo();
 }
 
@@ -172,9 +187,9 @@ function renderDeepScan(scan) {
   ui.rescanBtn.disabled = state.deepScanning;
 
   if (state.deepScanning) {
-    ui.scanStatus.textContent = `Derin tarama: ${scan.message}`;
+    setText(ui.scanStatus, DEEP_PHASE_KEYS[scan.phase] || 'deepStarting');
   } else if (scan.phase === 'error') {
-    ui.scanStatus.textContent = scan.message;
+    setText(ui.scanStatus, 'deepFailed', { error: scan.error || '' });
   } else {
     applyUrls([...state.quickUrls, ...(scan.urls || [])], { deep: true });
   }
@@ -195,21 +210,23 @@ function applyUrls(urls, info = {}) {
   ui.sequenceSelect.hidden = true;
 
   const bufferFull = !info.deep && info.resourceCount >= RESOURCE_BUFFER_LIMIT;
-  const deepHint = bufferFull || !state.scanned.length
-    ? ' Kareler kaçmış olabilir — "Derin tara"yı deneyin.'
-    : '';
+  const hint = bufferFull || !state.scanned.length;
 
   if (!unique.length) {
-    ui.scanStatus.textContent = `Sayfada .webp dosyası bulunamadı.${deepHint}`;
+    setText(ui.scanStatus, 'noWebp', { hint });
     return;
   }
   if (!state.scanned.length) {
-    ui.scanStatus.textContent = `${unique.length} .webp bulundu, ancak numaralı bir dizi yok.${deepHint}`;
+    setText(ui.scanStatus, 'noSequence', { n: unique.length, hint });
     return;
   }
 
-  ui.scanStatus.textContent =
-    `${info.deep ? 'Derin tarama: ' : ''}${unique.length} .webp · ${state.scanned.length} dizi tespit edildi.${deepHint}`;
+  setText(ui.scanStatus, 'scanResult', {
+    n: unique.length,
+    s: state.scanned.length,
+    deep: Boolean(info.deep),
+    hint
+  });
 
   // Birden fazla dizi varsa seçim kutusunu göster
   if (state.scanned.length > 1) {
@@ -217,7 +234,11 @@ function applyUrls(urls, info = {}) {
       ...state.scanned.map((seq, i) => {
         const opt = document.createElement('option');
         opt.value = String(i);
-        opt.textContent = `${patternLabel(seq)} (${seq.numbers.length} kare) — ${new URL(seq.dir).hostname}`;
+        setText(opt, 'sequenceOption', {
+          pattern: patternLabel(seq),
+          n: seq.numbers.length,
+          host: new URL(seq.dir).hostname
+        });
         return opt;
       })
     );
@@ -232,7 +253,7 @@ function applyUrls(urls, info = {}) {
 
 /** Aktif sekmeyi hızlıca tarar (yenilemeden). */
 async function quickScan() {
-  ui.scanStatus.textContent = 'Taranıyor…';
+  setText(ui.scanStatus, 'scanning');
   try {
     const [injection] = await chrome.scripting.executeScript({
       target: { tabId: state.tabId },
@@ -242,8 +263,7 @@ async function quickScan() {
     state.quickUrls = result.urls;
     applyUrls(result.urls, { resourceCount: result.resourceCount });
   } catch (_) {
-    ui.scanStatus.textContent =
-      'Bu sayfa taranamıyor (tarayıcı sayfası veya erişim kısıtı). Yukarıya bir sayfa adresi yazabilirsiniz.';
+    setText(ui.scanStatus, 'cannotScan');
   }
 }
 
@@ -256,13 +276,11 @@ async function quickScan() {
 async function startDeepScan(pageUrl, navigate) {
   const permission = await requestSitePermission(pageUrl);
   if (permission !== 'granted') {
-    ui.scanStatus.textContent = permission === 'unavailable'
-      ? RELOAD_EXTENSION_HINT
-      : 'Derin tarama için bu siteye erişim izni gerekli.';
+    setText(ui.scanStatus, permission === 'unavailable' ? 'reloadExtension' : 'deepNeedsPermission');
     return;
   }
 
-  renderDeepScan({ phase: 'loading', message: 'Başlatılıyor…' });
+  renderDeepScan({ phase: 'starting' });
   state.current = null;
   ui.sequenceCard.hidden = true;
   if (navigate) state.quickUrls = [];
@@ -290,11 +308,11 @@ async function detectRange(seq) {
   const knownFirst = seq.numbers[0];
   const knownLast = seq.numbers[seq.numbers.length - 1];
 
-  setDetectText('🔍 İlk ve son kare otomatik aranıyor…');
+  setDetectText('detecting');
 
   // URL'den gelen kare gerçekten erişilebilir mi?
   if (seq.source === 'url' && !(await frameExists(seq, knownLast))) {
-    if (!isCancelled()) setDetectText('Bu kareye erişilemedi; adresi kontrol edin.', true);
+    if (!isCancelled()) setDetectText('detectUnreachable', {}, true);
     return;
   }
 
@@ -304,9 +322,11 @@ async function detectRange(seq) {
   ]);
   if (isCancelled() || first === null || last === null) return;
 
-  setDetectText(
-    `✓ Otomatik bulundu: ${frameFileName(seq, first)} → ${frameFileName(seq, last)} (${last - first + 1} kare)`
-  );
+  setDetectText('detected', {
+    first: frameFileName(seq, first),
+    last: frameFileName(seq, last),
+    n: last - first + 1
+  });
   if (!state.rangeEdited) {
     ui.startInput.value = first;
     ui.endInput.value = last;
@@ -334,7 +354,7 @@ async function analyzeUrl(event) {
     pageUrl = new URL(value);
   } catch (_) { /* aşağıda hata gösterilir */ }
   if (!pageUrl || !/^https?:$/.test(pageUrl.protocol) || state.tabId === null) {
-    ui.urlError.textContent = 'Geçerli bir sayfa adresi (https://…) veya frame adresi (…/frame_0001.webp) girin.';
+    setText(ui.urlError, 'urlInvalid');
     ui.urlError.hidden = false;
     return;
   }
@@ -350,7 +370,7 @@ async function analyzeUrl(event) {
 async function startDownload() {
   const seq = state.current;
   const range = readRange();
-  if (!seq || range.error) return;
+  if (!seq || range.errorKey) return;
 
   const items = [];
   for (let n = range.start; n <= range.end; n++) {
@@ -362,11 +382,11 @@ async function startDownload() {
 
   ui.downloadBtn.disabled = true;
   const res = await chrome.runtime.sendMessage({ type: 'START_DOWNLOAD', items });
+  renderProgress(res?.status);
   if (!res?.ok) {
-    ui.rangeInfo.textContent = res?.error || 'İndirme başlatılamadı.';
+    setText(ui.rangeInfo, res?.errorCode === 'busy' ? 'downloadBusy' : 'downloadStartFailed');
     ui.rangeInfo.classList.add('error');
   }
-  renderProgress(res?.status);
   // Popup en fazla 600px; ilerleme kartı aşağıda kalırsa görünür hale getir.
   ui.progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -379,7 +399,7 @@ async function startDownload() {
 async function openSaveWindow() {
   const seq = state.current;
   const range = readRange();
-  if (!seq || range.error) return;
+  if (!seq || range.errorKey) return;
 
   const { dir, prefix, ext, query, pad } = seq;
   const params = new URLSearchParams({
@@ -407,6 +427,8 @@ async function cancelDownload() {
 /* 6. Olay bağlama ve başlatma                                         */
 /* ================================================================== */
 
+initI18n();
+
 ui.rescanBtn.addEventListener('click', quickScan);
 ui.deepScanBtn.addEventListener('click', () => startDeepScan(state.tabUrl, false));
 ui.urlForm.addEventListener('submit', analyzeUrl);
@@ -430,6 +452,9 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 (async function init() {
+  setText(ui.scanStatus, 'scanning');
+  renderProgress(null); // indirme butonunun metnini hemen yaz
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   state.tabId = tab?.id ?? null;
   state.tabUrl = /^https?:/.test(tab?.url || '') ? tab.url : '';

@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "WebP Frame Downloader"
+  },
+  "extDescription": {
+    "message": "Sayfadaki frame_####.webp gibi sıralı WebP animasyon karelerini tespit eder ve toplu indirir."
+  }
+}

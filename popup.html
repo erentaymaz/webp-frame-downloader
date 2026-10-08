@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="color-scheme" content="light dark">
@@ -9,9 +9,13 @@
 <body>
   <header class="header">
     <img src="icons/icon32.png" alt="" class="header__icon" width="24" height="24">
-    <div>
+    <div class="header__text">
       <h1 class="header__title">WebP Frame Downloader</h1>
-      <p class="header__subtitle">Sıralı animasyon karelerini toplu indir</p>
+      <p class="header__subtitle" data-i18n="appSubtitle"></p>
+    </div>
+    <div class="lang-switch" role="group" data-i18n-aria-label="languageLabel">
+      <button type="button" class="lang-switch__btn" data-lang="tr">TR</button>
+      <button type="button" class="lang-switch__btn" data-lang="en">EN</button>
     </div>
   </header>
 
@@ -19,65 +23,66 @@
     <!-- 1) Sayfa taraması -->
     <section class="card">
       <div class="card__head">
-        <h2 class="card__title">Sayfa taraması</h2>
+        <h2 class="card__title" data-i18n="scanTitle"></h2>
         <div class="row">
-          <button id="rescanBtn" class="btn btn--ghost btn--small" type="button">Yeniden tara</button>
+          <button id="rescanBtn" class="btn btn--ghost btn--small" type="button" data-i18n="rescan"></button>
           <button id="deepScanBtn" class="btn btn--secondary btn--small" type="button"
-                  title="Sayfayı yeniler, otomatik kaydırır ve tüm kareleri yakalar">Derin tara</button>
+                  data-i18n="deepScan" data-i18n-title="deepScanHint"></button>
         </div>
       </div>
-      <p id="scanStatus" class="muted">Taranıyor…</p>
+      <p id="scanStatus" class="muted"></p>
       <select id="sequenceSelect" class="input" hidden></select>
     </section>
 
     <!-- 2) URL ile analiz: sayfa adresi veya tek bir frame adresi -->
     <section class="card">
-      <h2 class="card__title">URL ile analiz</h2>
+      <h2 class="card__title" data-i18n="urlTitle"></h2>
       <form id="urlForm" class="row">
         <input id="urlInput" class="input" type="url" required
-               placeholder="Sayfa adresi veya …/frame_0202.webp" spellcheck="false">
-        <button class="btn btn--secondary" type="submit">Analiz et</button>
+               data-i18n-placeholder="urlPlaceholder" spellcheck="false">
+        <button class="btn btn--secondary" type="submit" data-i18n="analyze"></button>
       </form>
       <p id="urlError" class="error" hidden></p>
     </section>
 
     <!-- 3) Seçili dizi ve aralık -->
     <section id="sequenceCard" class="card" hidden>
-      <h2 class="card__title">Frame dizisi</h2>
+      <h2 class="card__title" data-i18n="sequenceTitle"></h2>
       <p class="pattern"><code id="patternText"></code></p>
       <p id="foundText" class="muted"></p>
       <p id="detectText" class="muted small" hidden></p>
 
       <div class="range">
         <label class="field">
-          <span>Başlangıç</span>
+          <span data-i18n="start"></span>
           <input id="startInput" class="input" type="number" min="0" step="1">
         </label>
         <label class="field">
-          <span>Bitiş</span>
+          <span data-i18n="end"></span>
           <input id="endInput" class="input" type="number" min="0" step="1">
         </label>
       </div>
       <p id="rangeInfo" class="muted small"></p>
 
-      <button id="pickFolderBtn" class="btn btn--primary btn--block" type="button">Klasör seçip indir…</button>
-      <button id="downloadBtn" class="btn btn--secondary btn--block" type="button">İndirilenler/animation_frames'e indir</button>
+      <button id="pickFolderBtn" class="btn btn--primary btn--block" type="button" data-i18n="pickFolder"></button>
+      <button id="downloadBtn" class="btn btn--secondary btn--block" type="button"></button>
     </section>
 
     <!-- 4) İlerleme -->
     <section id="progressCard" class="card" hidden>
       <div class="card__head">
-        <h2 class="card__title">İndirme</h2>
+        <h2 class="card__title" data-i18n="downloadTitle"></h2>
         <span id="progressText" class="progress__text">0 / 0</span>
       </div>
       <div class="progress"><div id="progressBar" class="progress__bar"></div></div>
       <div class="card__head">
         <p id="progressInfo" class="muted small"></p>
-        <button id="cancelBtn" class="btn btn--ghost btn--small" type="button">İptal</button>
+        <button id="cancelBtn" class="btn btn--ghost btn--small" type="button" data-i18n="cancel"></button>
       </div>
     </section>
   </main>
 
+  <script src="i18n.js"></script>
   <script src="frames.js"></script>
   <script src="scanner.js"></script>
   <script src="popup.js"></script>

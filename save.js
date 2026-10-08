@@ -7,6 +7,8 @@
  *   2. "İndirmeyi başlat" ile CDN için tek seferlik erişim izni istenir
  *   3. Kareler fetch ile çekilip klasöre dosya olarak yazılır
  *
+ * Metinler i18n.js üzerinden seçili dilde gösterilir.
+ *
  * Popup'tan URL parametreleriyle açılır:
  *   save.html?seq=<JSON {dir,prefix,ext,query,pad}>&start=1&end=202
  */
@@ -54,9 +56,10 @@ const state = {
 /* Yardımcılar                                                         */
 /* ------------------------------------------------------------------ */
 
-function showError(message) {
-  ui.errorText.textContent = message;
-  ui.errorText.hidden = !message;
+/** Hata satırı. key boşsa satır gizlenir. */
+function showError(key, params = {}) {
+  setText(ui.errorText, key, params);
+  ui.errorText.hidden = !key;
 }
 
 /** URL parametrelerinden diziyi ve aralığı okur. */
@@ -115,8 +118,11 @@ async function saveFrame(n, signal) {
 function renderSummary() {
   const { seq, start, end } = state;
   ui.patternText.textContent = seq.dir + patternLabel(seq);
-  ui.rangeText.textContent =
-    `${end - start + 1} kare · ${frameFileName(seq, start)} → ${frameFileName(seq, end)}`;
+  setText(ui.rangeText, 'rangeSummary', {
+    n: end - start + 1,
+    first: frameFileName(seq, start),
+    last: frameFileName(seq, end)
+  });
 }
 
 function renderProgress({ done, total, failed, phase }) {
@@ -126,17 +132,17 @@ function renderProgress({ done, total, failed, phase }) {
   ui.progressBar.classList.toggle('is-done', phase === 'done' && failed.length === 0);
   ui.cancelBtn.hidden = phase !== 'running';
 
-  const failText = failed.length ? ` · ${failed.length} başarısız` : '';
-  const folder = state.dirHandle?.name ?? '';
-  ui.progressInfo.textContent =
-    phase === 'running' ? `İndiriliyor…${failText}`
-    : phase === 'cancelled' ? `İptal edildi${failText}`
-    : `Tamamlandı → ${folder}${failText}`;
+  const infoKey =
+    phase === 'running' ? 'progressRunning'
+    : phase === 'cancelled' ? 'progressCancelled'
+    : 'saveDone';
+  setText(ui.progressInfo, infoKey, { failed: failed.length, folder: state.dirHandle?.name ?? '' });
 
   if (failed.length) {
-    const shown = failed.slice(0, MAX_FAILED_SHOWN).join(', ');
-    const more = failed.length > MAX_FAILED_SHOWN ? ` ve ${failed.length - MAX_FAILED_SHOWN} tane daha` : '';
-    ui.failedText.textContent = `İnmeyen kareler: ${shown}${more}`;
+    setText(ui.failedText, 'failedFrames', {
+      list: failed.slice(0, MAX_FAILED_SHOWN).join(', '),
+      more: Math.max(0, failed.length - MAX_FAILED_SHOWN)
+    });
     ui.failedText.hidden = false;
   } else {
     ui.failedText.hidden = true;
@@ -147,7 +153,7 @@ function setRunning(running) {
   state.running = running;
   ui.pickBtn.disabled = running;
   ui.startBtn.disabled = running || !state.dirHandle;
-  ui.startBtn.textContent = running ? 'İndiriliyor…' : 'İndirmeyi başlat';
+  setText(ui.startBtn, running ? 'downloading' : 'startDownload');
 }
 
 /* ------------------------------------------------------------------ */
@@ -155,23 +161,25 @@ function setRunning(running) {
 /* ------------------------------------------------------------------ */
 
 async function pickFolder() {
-  showError('');
+  showError(null);
   try {
     state.dirHandle = await window.showDirectoryPicker({
       id: 'webp-frames',   // tarayıcı son seçilen konumu hatırlar
       mode: 'readwrite'
     });
   } catch (err) {
-    if (err.name !== 'AbortError') showError(`Klasör seçilemedi: ${err.message}`);
+    if (err.name !== 'AbortError') showError('folderPickFailed', { error: err.message });
     return;
   }
+  // Klasör adı çevrilmez; dil değişince 'noFolder' metnine dönmemesi için bağı kaldır.
+  delete ui.folderText.dataset.i18n;
   ui.folderText.textContent = `📁 ${state.dirHandle.name}`;
   ui.folderText.classList.remove('muted');
   setRunning(false);
 }
 
 async function startDownload() {
-  showError('');
+  showError(null);
   if (!state.dirHandle) return;
 
   // İzin isteği kullanıcı tıklamasının hemen ardından yapılmalı.
@@ -183,9 +191,7 @@ async function startDownload() {
   } else if (await canFetchWithoutPermission()) {
     state.credentials = 'omit';    // sunucu CORS'a izin veriyor; izin gerekmez
   } else {
-    showError(permission === 'unavailable'
-      ? RELOAD_EXTENSION_HINT
-      : 'Kareleri klasöre yazabilmek için bu siteye erişim izni gerekli. Lütfen izin isteğini onaylayın.');
+    showError(permission === 'unavailable' ? 'reloadExtension' : 'saveNeedsPermission');
     setRunning(false);
     return;
   }
@@ -233,9 +239,14 @@ function cancelDownload() {
 /* ------------------------------------------------------------------ */
 
 (function init() {
+  initI18n();
+  document.title = t('saveDocTitle');
+  onLangChange(() => { document.title = t('saveDocTitle'); });
+  setRunning(false);
+
   const params = readParams();
   if (!params) {
-    showError('Geçersiz indirme bilgisi. Pencereyi kapatıp eklentiden tekrar deneyin.');
+    showError('saveInvalidParams');
     ui.pickBtn.disabled = true;
     return;
   }
@@ -243,7 +254,7 @@ function cancelDownload() {
   renderSummary();
 
   if (typeof window.showDirectoryPicker !== 'function') {
-    showError('Bu tarayıcı klasör seçmeyi desteklemiyor. Popup\'taki "İndirilenler\'e indir" seçeneğini kullanın.');
+    showError('saveNoPicker');
     ui.pickBtn.disabled = true;
     return;
   }

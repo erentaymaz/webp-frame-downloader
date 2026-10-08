@@ -248,7 +248,3 @@ async function requestSitePermission(url) {
     return 'unavailable';
   }
 }
-
-/** requestSitePermission 'unavailable' döndüğünde gösterilecek mesaj. */
-const RELOAD_EXTENSION_HINT =
-  'Eklentinin güncel ayarları yüklenmemiş. chrome://extensions sayfasında eklentiyi yenileyin (⟳) ve tekrar deneyin.';

@@ -1,24 +1,28 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="color-scheme" content="light dark">
-  <title>Klasöre indir — WebP Frame Downloader</title>
+  <title>WebP Frame Downloader</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body class="page">
   <header class="header">
     <img src="icons/icon32.png" alt="" class="header__icon" width="24" height="24">
-    <div>
-      <h1 class="header__title">Klasöre indir</h1>
-      <p class="header__subtitle">Kareler seçtiğiniz klasöre doğrudan kaydedilir</p>
+    <div class="header__text">
+      <h1 class="header__title" data-i18n="saveTitle"></h1>
+      <p class="header__subtitle" data-i18n="saveSubtitle"></p>
+    </div>
+    <div class="lang-switch" role="group" data-i18n-aria-label="languageLabel">
+      <button type="button" class="lang-switch__btn" data-lang="tr">TR</button>
+      <button type="button" class="lang-switch__btn" data-lang="en">EN</button>
     </div>
   </header>
 
   <main>
     <!-- İndirilecek dizi özeti -->
     <section class="card">
-      <h2 class="card__title">Frame dizisi</h2>
+      <h2 class="card__title" data-i18n="sequenceTitle"></h2>
       <p class="pattern"><code id="patternText"></code></p>
       <p id="rangeText" class="muted"></p>
     </section>
@@ -26,30 +30,31 @@
     <!-- Hedef klasör -->
     <section class="card">
       <div class="card__head">
-        <h2 class="card__title">Hedef klasör</h2>
-        <button id="pickBtn" class="btn btn--secondary btn--small" type="button">Klasör seç…</button>
+        <h2 class="card__title" data-i18n="targetFolder"></h2>
+        <button id="pickBtn" class="btn btn--secondary btn--small" type="button" data-i18n="chooseFolder"></button>
       </div>
-      <p id="folderText" class="muted">Henüz klasör seçilmedi.</p>
+      <p id="folderText" class="muted" data-i18n="noFolder"></p>
     </section>
 
-    <button id="startBtn" class="btn btn--primary btn--block" type="button" disabled>İndirmeyi başlat</button>
+    <button id="startBtn" class="btn btn--primary btn--block" type="button" disabled></button>
     <p id="errorText" class="error" hidden></p>
 
     <!-- İlerleme -->
     <section id="progressCard" class="card" hidden>
       <div class="card__head">
-        <h2 class="card__title">İndirme</h2>
+        <h2 class="card__title" data-i18n="downloadTitle"></h2>
         <span id="progressText" class="progress__text">0 / 0</span>
       </div>
       <div class="progress"><div id="progressBar" class="progress__bar"></div></div>
       <div class="card__head">
         <p id="progressInfo" class="muted small"></p>
-        <button id="cancelBtn" class="btn btn--ghost btn--small" type="button">İptal</button>
+        <button id="cancelBtn" class="btn btn--ghost btn--small" type="button" data-i18n="cancel"></button>
       </div>
       <p id="failedText" class="error" hidden></p>
     </section>
   </main>
 
+  <script src="i18n.js"></script>
   <script src="frames.js"></script>
   <script src="save.js"></script>
 </body>
