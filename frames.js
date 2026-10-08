@@ -81,7 +81,8 @@ function groupSequences(urls) {
     if (isZeroPadded(p.digits)) g.pad = Math.max(g.pad, p.digits.length);
   }
 
-  const score = (g) => (/frame/i.test(g.prefix) ? 1e6 : 0) + g.numbers.size;
+  // Sıralama map'ten sonra yapıldığı için numbers burada bir dizidir.
+  const score = (g) => (/frame/i.test(g.prefix) ? 1e6 : 0) + g.numbers.length;
 
   return [...groups.values()]
     .map((g) => ({ ...g, numbers: [...g.numbers].sort((a, b) => a - b) }))
