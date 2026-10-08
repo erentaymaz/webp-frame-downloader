@@ -8,6 +8,7 @@ directly from web pages.
 ![Opera](https://img.shields.io/badge/Opera-supported-FF1B2D?logo=opera&logoColor=white)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-6c5ce7)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
+[![Tests](https://github.com/erentaymaz/webp-frame-downloader/actions/workflows/test.yml/badge.svg)](https://github.com/erentaymaz/webp-frame-downloader/actions/workflows/test.yml)
 
 **English** · [Türkçe](README.tr.md)
 
@@ -114,9 +115,21 @@ i18n.js         Interface texts (English/Turkish) and the language switch
 _locales/       Extension name and description per browser language
 icons/          16, 32, 48, 128 px icons
 docs/demo.gif   Demo animation shown at the top of this README
+test/           Automated tests (Node built-in test runner)
+package.json    Test script only; the extension itself has no dependencies
 ```
 
 No build step and no framework: plain JavaScript, HTML and CSS.
+
+## Development
+
+The core logic has automated tests: URL parsing, zero padding, query strings, sequence grouping, first/last frame discovery and translation coverage. They need Node.js 22 or newer and no `npm install`:
+
+```bash
+npm test
+```
+
+The tests load the extension scripts unchanged and replace the network with a fake image server, so they run offline in under a second. GitHub Actions runs them on every push and pull request.
 
 ## Known limitations
 
