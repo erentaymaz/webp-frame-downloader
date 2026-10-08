@@ -1,0 +1,13 @@
+{
+  "name": "webp-frame-downloader",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Browser extension to detect, analyze and bulk download sequential WebP animation frames from web pages",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

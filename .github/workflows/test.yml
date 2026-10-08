@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # No dependencies to install: the suite uses Node's built-in test runner.
+      - run: npm test
+
+      - name: Check manifest and locale files are valid JSON
+        run: |
+          for f in manifest.json _locales/*/messages.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f', 'utf8'))"
+            echo "ok  $f"
+          done
+
+      - name: Check extension scripts parse
+        run: |
+          for f in *.js; do
+            node --check "$f"
+            echo "ok  $f"
+          done

@@ -8,6 +8,7 @@ ve tek seferde indirin.
 ![Opera](https://img.shields.io/badge/Opera-destekleniyor-FF1B2D?logo=opera&logoColor=white)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-6c5ce7)
 ![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-green)
+[![Tests](https://github.com/erentaymaz/webp-frame-downloader/actions/workflows/test.yml/badge.svg)](https://github.com/erentaymaz/webp-frame-downloader/actions/workflows/test.yml)
 
 [English](README.md) · **Türkçe**
 
@@ -116,9 +117,21 @@ i18n.js         Arayüz metinleri (Türkçe/İngilizce) ve dil anahtarı
 _locales/       Tarayıcı diline göre eklenti adı ve açıklaması
 icons/          16, 32, 48, 128 px simgeler
 docs/demo.gif   Bu README'nin başındaki demo animasyonu
+test/           Otomatik testler (Node'un yerleşik test çalıştırıcısı)
+package.json    Yalnızca test komutu; eklentinin kendisinin bağımlılığı yoktur
 ```
 
 Derleme adımı ve framework yoktur: yalnızca JavaScript, HTML ve CSS.
+
+## Geliştirme
+
+Temel mantık otomatik testlerle korunur: URL çözümleme, sıfır doldurma, sorgu dizesi, dizi gruplama, ilk/son kare tespiti ve çeviri kapsamı. Node.js 22 veya üstü yeterlidir, `npm install` gerekmez:
+
+```bash
+npm test
+```
+
+Testler eklenti betiklerini değiştirmeden yükler ve ağ yerine sahte bir görsel sunucusu kullanır; bu yüzden internetsiz, bir saniyeden kısa sürede çalışır. GitHub Actions bunları her push ve pull request'te çalıştırır.
 
 ## Bilinen sınırlamalar
 
