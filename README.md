@@ -38,6 +38,7 @@ finds its real start and end, and downloads every frame.
 ✓ Direct frame URL analysis  
 ✓ Bulk download  
 ✓ Custom destination folder  
+✓ English and Turkish interface  
 ✓ Chrome / Edge / Opera  
 ✓ No tracking, no analytics
 
@@ -54,26 +55,26 @@ The extension is not on a web store yet, so you load it in developer mode:
 4. Click **Load unpacked** and select the repository folder.
 5. Pin the extension to the toolbar.
 
-## Usage
+The interface opens in English, or in Turkish if your browser is set to Turkish. Switch at any time with the **TR | EN** toggle in the top-right corner of the popup; the choice is remembered.
 
-> The interface is currently in Turkish. Button names below are shown as they appear in the extension, followed by their English meaning.
+## Usage
 
 ### Scan the current page
 
 1. Open the page with the animation and let it load.
 2. Click the extension icon. The page is scanned automatically.
-   - If no sequence is found, or it looks incomplete, click **Derin tara** *(Deep scan)*. The first time, the browser asks for access to that site. The page then reloads and scrolls itself (10–30 seconds).
+   - If no sequence is found, or it looks incomplete, click **Deep scan**. The first time, the browser asks for access to that site. The page then reloads and scrolls itself (10–30 seconds).
 3. If several sequences are found, pick one from the list.
-4. The extension finds the first and last frame on its own (`✓ Otomatik bulundu: …` — *found automatically*). You can still edit the range by hand.
+4. The extension finds the first and last frame on its own (`✓ Found automatically: …`). You can still edit the range by hand.
 5. Choose how to download:
-   - **Klasör seçip indir…** *(Choose folder and download)* opens a small window. Pick a folder with **Klasör seç…** *(Choose folder)*, then click **İndirmeyi başlat** *(Start download)*. The first time, the browser asks for access to the server that hosts the frames (for example `*.cloudfront.net`). Keep the window open until the download finishes.
-   - **İndirilenler/animation_frames'e indir** *(Download to Downloads/animation_frames)* uses the browser's own download manager and keeps going even if the popup closes.
+   - **Choose folder and download…** opens a small window. Pick a folder with **Choose folder…**, then click **Start download**. The first time, the browser asks for access to the server that hosts the frames (for example `*.cloudfront.net`). Keep the window open until the download finishes.
+   - **Download to Downloads/animation_frames** uses the browser's own download manager and keeps going even if the popup closes.
 
 Progress is shown as `87 / 202`.
 
 ### Analyze a URL
 
-Type a URL into the **URL ile analiz** *(Analyze URL)* field and click **Analiz et** *(Analyze)*:
+Type a URL into the **Analyze URL** field and click **Analyze**:
 
 - **A page URL** (for example `https://racing.porsche.com`): the tab opens that page and runs a deep scan for you.
 - **A frame URL** (for example `…/frames/frame_0202.webp`): the sequence is built from that one file, and its first and last frame are found automatically.
@@ -109,6 +110,8 @@ scanner.js      Functions injected into the page: scanner and auto-scroll
 capture.js      Deep scan: lifts the 250-resource limit before the page loads
 save.html/.js   "Choose folder" download window (File System Access API)
 background.js   Deep scan flow + Downloads-folder download queue
+i18n.js         Interface texts (English/Turkish) and the language switch
+_locales/       Extension name and description per browser language
 icons/          16, 32, 48, 128 px icons
 docs/demo.gif   Demo animation shown at the top of this README
 ```
@@ -126,7 +129,7 @@ No build step and no framework: plain JavaScript, HTML and CSS.
 ## Roadmap
 
 - [x] Automatic first/last frame discovery
-- [ ] English interface
+- [x] English interface with in-app language switch
 - [ ] Download as a single ZIP
 - [ ] Export as an animation (animated WebP / GIF / MP4)
 - [ ] Optional subfolder per sequence

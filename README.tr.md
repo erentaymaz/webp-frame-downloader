@@ -38,6 +38,7 @@ gerçek başlangıç ve bitişini bulur ve tüm kareleri indirir.
 ✓ Frame URL'sinden doğrudan analiz  
 ✓ Toplu indirme  
 ✓ İstediğiniz hedef klasör  
+✓ Türkçe ve İngilizce arayüz  
 ✓ Chrome / Edge / Opera  
 ✓ İzleme yok, analitik yok
 
@@ -53,6 +54,8 @@ Eklenti henüz bir mağazada yayında değil; geliştirici modunda yüklenir:
 3. **Geliştirici modu**nu açın.
 4. **Paketlenmemiş öğe yükle** (Load unpacked) deyip repo klasörünü seçin.
 5. Eklentiyi araç çubuğuna sabitleyin.
+
+Arayüz, tarayıcınız Türkçe ise Türkçe, değilse İngilizce açılır. Popup'ın sağ üst köşesindeki **TR | EN** anahtarıyla dilediğiniz an değiştirebilirsiniz; seçiminiz hatırlanır.
 
 ## Kullanım
 
@@ -109,6 +112,8 @@ scanner.js      Sayfaya enjekte edilen fonksiyonlar: tarayıcı ve otomatik kayd
 capture.js      Derin tarama: sayfa yüklenmeden önce 250 kaynak sınırını kaldırır
 save.html/.js   "Klasör seç" indirme penceresi (File System Access API)
 background.js   Derin tarama akışı + İndirilenler klasörüne indirme kuyruğu
+i18n.js         Arayüz metinleri (Türkçe/İngilizce) ve dil anahtarı
+_locales/       Tarayıcı diline göre eklenti adı ve açıklaması
 icons/          16, 32, 48, 128 px simgeler
 docs/demo.gif   Bu README'nin başındaki demo animasyonu
 ```
@@ -126,7 +131,7 @@ Derleme adımı ve framework yoktur: yalnızca JavaScript, HTML ve CSS.
 ## Yol haritası
 
 - [x] İlk/son karenin otomatik bulunması
-- [ ] İngilizce arayüz
+- [x] Arayüzden dil değiştirilebilen İngilizce arayüz
 - [ ] Tek ZIP dosyası olarak indirme
 - [ ] Animasyon olarak dışa aktarma (animated WebP / GIF / MP4)
 - [ ] Dizi başına isteğe bağlı alt klasör
