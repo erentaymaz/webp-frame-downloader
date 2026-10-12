@@ -2,6 +2,8 @@
 
 Everything needed to publish WebP Frame Downloader on the Chrome Web Store, Microsoft Edge Add-ons and Opera add-ons: which image goes where, and the text to paste into each form.
 
+**Chrome Web Store:** published at https://chromewebstore.google.com/detail/webp-frame-downloader/jfnjdomodncnoignmpmjhlafamcbefmf
+
 ## Which file goes where
 
 | Store field | File | Size |
@@ -204,6 +206,8 @@ Hata bulursanız veya öneriniz varsa orada bir issue açın.
 ---
 
 ## Before you submit
+
+Chrome is already published. Use this checklist for a Chrome update, and for the first Edge and Opera submissions.
 
 - Bump `version` in `manifest.json` and `package.json` if the store build differs from the last GitHub release.
 - Build the ZIP from a clean checkout so no `node_modules` or test files slip in.

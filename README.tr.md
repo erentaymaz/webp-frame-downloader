@@ -3,7 +3,7 @@
 Web sayfalarındaki sıralı WebP animasyon karelerini tespit edin
 ve tek seferde indirin.
 
-![Chrome](https://img.shields.io/badge/Chrome-destekleniyor-4285F4?logo=googlechrome&logoColor=white)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-yükle-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/webp-frame-downloader/jfnjdomodncnoignmpmjhlafamcbefmf)
 ![Edge](https://img.shields.io/badge/Edge-destekleniyor-0078D7?logo=microsoftedge&logoColor=white)
 ![Opera](https://img.shields.io/badge/Opera-destekleniyor-FF1B2D?logo=opera&logoColor=white)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-6c5ce7)
@@ -45,7 +45,9 @@ gerçek başlangıç ve bitişini bulur ve tüm kareleri indirir.
 
 ## Kurulum
 
-Eklenti henüz bir mağazada yayında değil; geliştirici modunda yüklenir:
+Eklentiyi [Chrome Web Store](https://chromewebstore.google.com/detail/webp-frame-downloader/jfnjdomodncnoignmpmjhlafamcbefmf) üzerinden yükleyin.
+
+Güncel kaynak kodunu denemek veya eklentiyi Edge ya da Opera'da kullanmak için geliştirici modunda yükleyin:
 
 1. Bu repoyu indirin veya klonlayın.
 2. Tarayıcınızın eklentiler sayfasını açın:

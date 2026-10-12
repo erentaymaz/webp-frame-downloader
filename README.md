@@ -3,7 +3,7 @@
 Detect and bulk download sequential WebP animation frames
 directly from web pages.
 
-![Chrome](https://img.shields.io/badge/Chrome-supported-4285F4?logo=googlechrome&logoColor=white)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-install-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/webp-frame-downloader/jfnjdomodncnoignmpmjhlafamcbefmf)
 ![Edge](https://img.shields.io/badge/Edge-supported-0078D7?logo=microsoftedge&logoColor=white)
 ![Opera](https://img.shields.io/badge/Opera-supported-FF1B2D?logo=opera&logoColor=white)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-6c5ce7)
@@ -45,7 +45,9 @@ finds its real start and end, and downloads every frame.
 
 ## Installation
 
-The extension is not on a web store yet, so you load it in developer mode:
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/webp-frame-downloader/jfnjdomodncnoignmpmjhlafamcbefmf).
+
+To run the latest source, or to use the extension in Edge or Opera, load it in developer mode:
 
 1. Download or clone this repository.
 2. Open the extensions page of your browser:
